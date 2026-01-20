@@ -18,7 +18,7 @@ type AccountMasterMap = Record<string, string[]>; // clientName -> accounts[]
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AppTab>(AppTab.SCANNER);
   const [geminiApiKey, setGeminiApiKey] = useState<string>('');
-  const [geminiModel, setGeminiModel] = useState<GeminiModelId>('gemini-2.0-flash');
+  const [geminiModel, setGeminiModel] = useState<GeminiModelId>('gemini-2.5-flash');
   const [customTaxCategories, setCustomTaxCategories] = useState<string[]>([]);
   const [clients, setClients] = useState<string[]>(['株式会社サンプル']);
   const [accountMasters, setAccountMasters] = useState<AccountMasterMap>({});
@@ -154,15 +154,16 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main Content - Both tabs are always rendered but hidden via CSS to preserve state */}
       <main className="flex-1 px-4 sm:px-8 pb-12 overflow-y-auto">
-        {activeTab === AppTab.SCANNER ? (
+        <div className={activeTab === AppTab.SCANNER ? '' : 'hidden'}>
           <ScannerTab
             geminiApiKey={geminiApiKey}
             geminiModel={geminiModel}
             customTaxCategories={customTaxCategories}
           />
-        ) : (
+        </div>
+        <div className={activeTab === AppTab.MASTER ? '' : 'hidden'}>
           <MasterTab
             geminiApiKey={geminiApiKey}
             onApiKeyChange={handleApiKeyChange}
@@ -174,7 +175,7 @@ const App: React.FC = () => {
             accountMasters={accountMasters}
             onAccountMasterChange={handleAccountMasterChange}
           />
-        )}
+        </div>
       </main>
 
       <footer className="py-8 text-center text-stone-400 text-xs font-medium">

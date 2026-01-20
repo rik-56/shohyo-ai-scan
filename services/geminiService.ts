@@ -207,12 +207,15 @@ export const parseManualJsonResponse = (jsonText: string): Transaction[] => {
   });
 };
 
-// Available Gemini models
+// Available Gemini models (Updated: 2025-01)
+// Reference: https://ai.google.dev/gemini-api/docs/models
 export const GEMINI_MODELS = [
-  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: '無料・高速（推奨）' },
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: '無料・最新' },
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: '有料・高精度' },
-  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: '有料・安定' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: '無料・高速・安定版（推奨）' },
+  { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash-Lite', description: '無料・最速' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: '有料・高精度（コード/数学）' },
+  { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash (Preview)', description: '最新・高速・プレビュー版' },
+  { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro (Preview)', description: '最新・最高精度・プレビュー版' },
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: '無料・旧世代' },
 ] as const;
 
 export type GeminiModelId = typeof GEMINI_MODELS[number]['id'];
@@ -231,7 +234,7 @@ export const analyzeWithGemini = async (
   fileData: string,
   mimeType: string,
   apiKey: string,
-  model: GeminiModelId = 'gemini-2.0-flash'
+  model: GeminiModelId = 'gemini-2.5-flash'
 ): Promise<Transaction[]> => {
   // Remove data URL prefix if present
   const base64Data = fileData.includes(',')
