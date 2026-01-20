@@ -33,7 +33,7 @@ const DEFAULT_TAX_CATEGORIES = [
 
 // Storage keys moved to parent (App.tsx) for centralized management
 
-type BookType = 'cash' | 'bank' | 'card';
+type BookType = 'cash';
 type FileState = {
   type: 'image' | 'pdf' | 'csv';
   previewUrl: string | null; // For images
@@ -92,7 +92,8 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
   const [preSelectedSubKamoku, setPreSelectedSubKamoku] = useState<string>('');
 
   // Global tax category selection (for new transactions without AI-detected category)
-  const [defaultTaxCategory, setDefaultTaxCategory] = useState<string>('課税仕入 10%');
+  // Empty string means AI's detection is used as-is
+  const [defaultTaxCategory, setDefaultTaxCategory] = useState<string>('');
 
   // Toast notification
   const { toasts, showToast, removeToast } = useToast();
@@ -176,16 +177,12 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
     }
   }, [selectedClient]);
 
-  // Mapping for book type to base account
-  const BOOK_TYPE_ACCOUNT_MAP: Record<BookType, string> = {
-    cash: '現金',
-    bank: '普通預金',
-    card: '未払金'
-  };
+  // Base account is always cash (現金出納帳)
+  const BASE_ACCOUNT = '現金';
 
   useEffect(() => {
-    setBaseAccount(BOOK_TYPE_ACCOUNT_MAP[bookType]);
-  }, [bookType]);
+    setBaseAccount(BASE_ACCOUNT);
+  }, []);
 
   const handleAddClient = () => {
     if (!newClientName.trim()) return;
@@ -239,14 +236,13 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
     setTransactions(results.map(t => {
       const rule = learningRules[t.description];
       const signedAmount = t.type === 'expense' ? -Math.abs(t.amount) : Math.abs(t.amount);
-      const defaultTax = t.type === 'income' ? '課税売上 10%' : '課税仕入 10%';
       return {
         ...t,
         amount: signedAmount,
         kamoku: rule?.kamoku || (t.type === 'income' ? '仮受金' : '仮払金'),
         subKamoku: rule?.subKamoku || '',
         invoiceNumber: t.invoiceNumber || '',
-        taxCategory: t.taxCategory || defaultTax
+        taxCategory: t.taxCategory || ''
       };
     }));
     showToast('解析が完了しました！', 'success');
@@ -274,14 +270,13 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
       setTransactions(results.map(t => {
         const rule = learningRules[t.description];
         const signedAmount = t.type === 'expense' ? -Math.abs(t.amount) : Math.abs(t.amount);
-        const defaultTax = t.type === 'income' ? '課税売上 10%' : '課税仕入 10%';
         return {
           ...t,
           amount: signedAmount,
           kamoku: rule?.kamoku || (t.type === 'income' ? '仮受金' : '仮払金'),
           subKamoku: rule?.subKamoku || '',
           invoiceNumber: t.invoiceNumber || '',
-          taxCategory: t.taxCategory || defaultTax
+          taxCategory: t.taxCategory || ''
         };
       }));
       showToast('AI自動解析が完了しました！', 'success');
@@ -318,10 +313,13 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
     setTransactions(prev => prev.map(t => t.id === id ? { ...t, amount: -t.amount, kamoku: t.kamoku === '仮払金' ? '仮受金' : t.kamoku === '仮受金' ? '仮払金' : t.kamoku } : t));
   };
 
-  // Delete transaction with undo capability
+  // Delete transaction with confirmation and undo capability
   const deleteTransaction = (id: string) => {
     const targetTransaction = transactions.find(t => t.id === id);
     if (!targetTransaction) return;
+
+    // Confirmation dialog
+    if (!window.confirm('この取引を削除しますか？')) return;
 
     setLastDeletedTransaction(targetTransaction);
     setTransactions(prev => prev.filter(t => t.id !== id));
@@ -489,12 +487,10 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
             <div className="space-y-3">
               <label className="text-sm font-bold text-stone-500">元帳の種類</label>
               <div className="flex gap-3">
-                {['cash', 'bank', 'card'].map(type => (
-                  <button key={type} onClick={() => setBookType(type as BookType)} className={`flex-1 py-3 rounded-2xl border-2 flex flex-col items-center transition-all ${bookType === type ? 'bg-orange-50 border-orange-400 text-orange-700' : 'bg-stone-50 border-transparent text-stone-400'}`}>
-                    {type === 'cash' ? <Coins /> : type === 'bank' ? <Landmark /> : <CreditCard />}
-                    <span className="text-xs font-bold">{type === 'cash' ? '現金' : type === 'bank' ? '預金' : 'カード'}</span>
-                  </button>
-                ))}
+                <div className="flex-1 py-3 rounded-2xl border-2 flex flex-col items-center bg-orange-50 border-orange-400 text-orange-700">
+                  <Coins />
+                  <span className="text-xs font-bold">現金出納帳</span>
+                </div>
               </div>
             </div>
             <div className="space-y-3">

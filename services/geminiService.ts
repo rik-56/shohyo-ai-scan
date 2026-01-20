@@ -190,9 +190,6 @@ export const parseManualJsonResponse = (jsonText: string): Transaction[] => {
       throw new AnalysisError('INVALID_RESPONSE', `取引 ${index + 1} のtypeは 'income' または 'expense' である必要があります`);
     }
 
-    // Determine default tax category based on type if not provided
-    const defaultTaxCategory = item.type === 'income' ? '課税売上 10%' : '課税仕入 10%';
-
     return {
       id: `txn-${Date.now()}-${index}`,
       date: normalizeDate(item.date),
@@ -202,7 +199,7 @@ export const parseManualJsonResponse = (jsonText: string): Transaction[] => {
       kamoku: item.kamoku || null,
       subKamoku: item.subKamoku || null,
       invoiceNumber: item.invoiceNumber || null,
-      taxCategory: item.taxCategory || defaultTaxCategory
+      taxCategory: item.taxCategory || null
     };
   });
 };
