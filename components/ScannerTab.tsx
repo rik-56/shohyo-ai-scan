@@ -4,11 +4,12 @@ import { Transaction, HistoryBatch } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Toast, useToast } from './Toast';
 import { ManualAIModal } from './ManualAIModal';
-import { analyzeWithGemini, AnalysisError, errorMessages } from '../services/geminiService';
+import { analyzeWithGemini, AnalysisError, errorMessages, GeminiModelId } from '../services/geminiService';
 
 // Props interface for ScannerTab
 interface ScannerTabProps {
   geminiApiKey: string;
+  geminiModel: GeminiModelId;
   customTaxCategories: string[];
 }
 
@@ -48,7 +49,7 @@ const STORAGE_KEY_CLIENTS = 'kakeibo_ai_clients';
 const STORAGE_PREFIX_RULES = 'kakeibo_ai_rules_';
 const STORAGE_KEY_HISTORY = 'kakeibo_ai_history';
 
-export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, customTaxCategories }) => {
+export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiModel, customTaxCategories }) => {
   const [clients, setClients] = useState<string[]>(['株式会社サンプル']);
   const [selectedClient, setSelectedClient] = useState<string>('株式会社サンプル');
   const [isAddingClient, setIsAddingClient] = useState(false);
@@ -266,7 +267,8 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, customTaxC
       const results = await analyzeWithGemini(
         fileState.data,
         fileState.mimeType,
-        geminiApiKey
+        geminiApiKey,
+        geminiModel
       );
 
       setTransactions(results.map(t => {
@@ -1021,6 +1023,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, customTaxC
           message={toast.message}
           type={toast.type}
           onClose={() => removeToast(toast.id)}
+          action={toast.action}
         />
       ))}
 

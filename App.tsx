@@ -3,9 +3,11 @@ import { ReceiptJapaneseYen, Receipt, Settings } from 'lucide-react';
 import { ScannerTab } from './components/ScannerTab';
 import { MasterTab } from './components/MasterTab';
 import { AppTab } from './types';
+import { GeminiModelId } from './services/geminiService';
 
 // Storage keys for centralized settings
 const STORAGE_KEY_GEMINI_API_KEY = 'kakeibo_ai_gemini_api_key';
+const STORAGE_KEY_GEMINI_MODEL = 'kakeibo_ai_gemini_model';
 const STORAGE_KEY_CUSTOM_TAX_CATEGORIES = 'kakeibo_ai_custom_tax_categories';
 const STORAGE_KEY_CLIENTS = 'kakeibo_ai_clients';
 const STORAGE_PREFIX_ACCOUNT_MASTER = 'kakeibo_ai_accounts_';
@@ -16,6 +18,7 @@ type AccountMasterMap = Record<string, string[]>; // clientName -> accounts[]
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AppTab>(AppTab.SCANNER);
   const [geminiApiKey, setGeminiApiKey] = useState<string>('');
+  const [geminiModel, setGeminiModel] = useState<GeminiModelId>('gemini-2.0-flash');
   const [customTaxCategories, setCustomTaxCategories] = useState<string[]>([]);
   const [clients, setClients] = useState<string[]>(['株式会社サンプル']);
   const [accountMasters, setAccountMasters] = useState<AccountMasterMap>({});
@@ -25,6 +28,11 @@ const App: React.FC = () => {
     const savedApiKey = localStorage.getItem(STORAGE_KEY_GEMINI_API_KEY);
     if (savedApiKey) {
       setGeminiApiKey(savedApiKey);
+    }
+
+    const savedModel = localStorage.getItem(STORAGE_KEY_GEMINI_MODEL);
+    if (savedModel) {
+      setGeminiModel(savedModel as GeminiModelId);
     }
 
     const savedTaxCategories = localStorage.getItem(STORAGE_KEY_CUSTOM_TAX_CATEGORIES);
@@ -77,6 +85,12 @@ const App: React.FC = () => {
     } else {
       localStorage.removeItem(STORAGE_KEY_GEMINI_API_KEY);
     }
+  };
+
+  // Handler for model changes
+  const handleModelChange = (model: GeminiModelId) => {
+    setGeminiModel(model);
+    localStorage.setItem(STORAGE_KEY_GEMINI_MODEL, model);
   };
 
   // Handler for custom tax categories changes
@@ -145,12 +159,15 @@ const App: React.FC = () => {
         {activeTab === AppTab.SCANNER ? (
           <ScannerTab
             geminiApiKey={geminiApiKey}
+            geminiModel={geminiModel}
             customTaxCategories={customTaxCategories}
           />
         ) : (
           <MasterTab
             geminiApiKey={geminiApiKey}
             onApiKeyChange={handleApiKeyChange}
+            geminiModel={geminiModel}
+            onModelChange={handleModelChange}
             customTaxCategories={customTaxCategories}
             onCustomTaxCategoriesChange={handleCustomTaxCategoriesChange}
             clients={clients}

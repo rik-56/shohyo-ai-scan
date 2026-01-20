@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Settings, Key, Eye, EyeOff, CheckCircle2, Plus, X, Tag, Briefcase, BookOpen } from 'lucide-react';
+import { Settings, Key, Eye, EyeOff, CheckCircle2, Plus, X, Tag, Briefcase, BookOpen, Cpu } from 'lucide-react';
+import { GEMINI_MODELS, GeminiModelId } from '../services/geminiService';
 
 // Default tax categories
 const DEFAULT_TAX_CATEGORIES = [
@@ -24,6 +25,8 @@ type AccountMasterMap = Record<string, string[]>;
 interface MasterTabProps {
   geminiApiKey: string;
   onApiKeyChange: (key: string) => void;
+  geminiModel: GeminiModelId;
+  onModelChange: (model: GeminiModelId) => void;
   customTaxCategories: string[];
   onCustomTaxCategoriesChange: (categories: string[]) => void;
   clients: string[];
@@ -34,6 +37,8 @@ interface MasterTabProps {
 export const MasterTab: React.FC<MasterTabProps> = ({
   geminiApiKey,
   onApiKeyChange,
+  geminiModel,
+  onModelChange,
   customTaxCategories,
   onCustomTaxCategoriesChange,
   clients,
@@ -143,6 +148,53 @@ export const MasterTab: React.FC<MasterTabProps> = ({
               APIキーが未設定です。手動モード（ChatGPT / Claude Web）のみ利用可能です。
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Gemini Model Selection */}
+      <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-lg border-2 border-white">
+        <h2 className="text-lg font-bold text-stone-700 mb-6 flex items-center gap-2">
+          <Cpu className="w-5 h-5 text-orange-500" />
+          AIモデル選択
+        </h2>
+
+        <div className="space-y-4">
+          <p className="text-sm text-stone-500">
+            使用するGeminiモデルを選択できます。有料モデルはより高精度ですが、APIの課金が発生します。
+          </p>
+
+          <div className="grid gap-3">
+            {GEMINI_MODELS.map(model => (
+              <label
+                key={model.id}
+                className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                  geminiModel === model.id
+                    ? 'border-orange-400 bg-orange-50'
+                    : 'border-stone-100 bg-stone-50 hover:border-stone-200'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="geminiModel"
+                  value={model.id}
+                  checked={geminiModel === model.id}
+                  onChange={() => onModelChange(model.id)}
+                  className="sr-only"
+                />
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  geminiModel === model.id ? 'border-orange-500 bg-orange-500' : 'border-stone-300'
+                }`}>
+                  {geminiModel === model.id && (
+                    <div className="w-2 h-2 rounded-full bg-white" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="font-bold text-stone-700">{model.name}</div>
+                  <div className="text-sm text-stone-500">{model.description}</div>
+                </div>
+              </label>
+            ))}
+          </div>
         </div>
       </div>
 

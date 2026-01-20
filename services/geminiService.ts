@@ -207,6 +207,16 @@ export const parseManualJsonResponse = (jsonText: string): Transaction[] => {
   });
 };
 
+// Available Gemini models
+export const GEMINI_MODELS = [
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: '無料・高速（推奨）' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: '無料・最新' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: '有料・高精度' },
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: '有料・安定' },
+] as const;
+
+export type GeminiModelId = typeof GEMINI_MODELS[number]['id'];
+
 /**
  * Analyzes a document using Google Gemini API.
  * Supports images (JPG, PNG, etc.) and PDFs.
@@ -214,12 +224,14 @@ export const parseManualJsonResponse = (jsonText: string): Transaction[] => {
  * @param fileData - Base64 encoded file data (with or without data URL prefix)
  * @param mimeType - MIME type of the file (e.g., 'image/jpeg', 'application/pdf')
  * @param apiKey - Google Gemini API key
+ * @param model - Gemini model to use (default: gemini-2.0-flash)
  * @returns Promise<Transaction[]> - Parsed transactions
  */
 export const analyzeWithGemini = async (
   fileData: string,
   mimeType: string,
-  apiKey: string
+  apiKey: string,
+  model: GeminiModelId = 'gemini-2.0-flash'
 ): Promise<Transaction[]> => {
   // Remove data URL prefix if present
   const base64Data = fileData.includes(',')
@@ -250,7 +262,7 @@ export const analyzeWithGemini = async (
     }
   };
 
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   try {
     console.log('[Gemini API] Sending request...');
