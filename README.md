@@ -1,20 +1,57 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 証憑 AI Scan
 
-# Run and deploy your AI Studio app
+レシートや領収書の写真を撮るだけで、AIが自動的に仕訳データを作成する会計補助アプリです。
 
-This contains everything you need to run your app locally.
+## アプリURL
 
-View your app in AI Studio: https://ai.studio/apps/drive/1i8fNah7zAqiU4aJ5VAQ27nfy5BnKDwA3
+**https://shohyo-ai-scan.vercel.app/**
 
-## Run Locally
+スマホ・PCどちらからでもアクセスできます。
 
-**Prerequisites:**  Node.js
+## 主な機能
 
+- レシート・領収書・PDFをAIで自動解析
+- 勘定科目の編集・学習機能
+- Money Forward互換CSVの出力
+- 複数クライアント（会社）の管理
+- 月別収支グラフの表示
+- 出力履歴の保存・管理
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 技術スタック
+
+| カテゴリ | 技術 |
+|---------|------|
+| フレームワーク | React 19 |
+| ビルドツール | Vite 6 |
+| 言語 | TypeScript |
+| AI API | Google Gemini API |
+| スタイル | Tailwind CSS |
+| グラフ | Recharts |
+| ホスティング | Vercel |
+
+## 開発
+
+### ローカルで実行
+
+```bash
+# 依存関係のインストール
+npm install
+
+# 開発サーバーの起動
+npm run dev
+```
+
+### ビルド
+
+```bash
+npm run build
+```
+
+## ドキュメント
+
+- [使い方ガイド](docs/使い方ガイド.md) - スマホ向けの操作説明
+- [仕様書](仕様書.md) - 技術仕様の詳細
+
+## ライセンス
+
+Private
