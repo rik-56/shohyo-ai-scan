@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>証憑AI Scan 使い方ガイド</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'Meiryo', sans-serif;
+      line-height: 1.8;
+      color: #333;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 30px;
+      background: #fff;
+    }
+    h1 {
+      font-size: 28px;
+      color: #ea580c;
+      text-align: center;
+      margin-bottom: 10px;
+      padding-bottom: 15px;
+      border-bottom: 3px solid #ea580c;
+    }
+    h1 + p {
+      text-align: center;
+      color: #666;
+      margin-bottom: 30px;
+    }
+    h2 {
+      font-size: 20px;
+      color: #ea580c;
+      margin-top: 40px;
+      margin-bottom: 15px;
+      padding: 10px 15px;
+      background: #fff7ed;
+      border-left: 4px solid #ea580c;
+      border-radius: 0 8px 8px 0;
+    }
+    h3 {
+      font-size: 16px;
+      color: #444;
+      margin-top: 25px;
+      margin-bottom: 10px;
+      padding-left: 10px;
+      border-left: 3px solid #fed7aa;
+    }
+    p {
+      margin-bottom: 15px;
+    }
+    ul, ol {
+      margin-left: 25px;
+      margin-bottom: 15px;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px 12px;
+      text-align: left;
+    }
+    th {
+      background: #fff7ed;
+      color: #ea580c;
+      font-weight: bold;
+    }
+    tr:nth-child(even) {
+      background: #fafafa;
+    }
+    code {
+      background: #f5f5f5;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    a {
+      color: #ea580c;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    .url-box {
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+      text-align: center;
+      font-size: 14px;
+      word-break: break-all;
+    }
+    .url-box strong {
+      display: block;
+      color: #ea580c;
+      margin-bottom: 5px;
+    }
+    .note {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 12px 15px;
+      margin: 15px 0;
+      border-radius: 0 8px 8px 0;
+    }
+    .note::before {
+      content: "注意: ";
+      font-weight: bold;
+      color: #b45309;
+    }
+    .tip {
+      background: #dcfce7;
+      border-left: 4px solid #22c55e;
+      padding: 12px 15px;
+      margin: 15px 0;
+      border-radius: 0 8px 8px 0;
+    }
+    .tip::before {
+      content: "コツ: ";
+      font-weight: bold;
+      color: #16a34a;
+    }
+    .toc {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 20px 25px;
+      margin: 20px 0;
+    }
+    .toc h3 {
+      margin-top: 0;
+      border: none;
+      padding: 0;
+      color: #ea580c;
+    }
+    .toc ol {
+      margin-bottom: 0;
+    }
+    .qa {
+      margin-bottom: 20px;
+    }
+    .qa h4 {
+      color: #ea580c;
+      margin-bottom: 8px;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #e5e5e5;
+      margin: 30px 0;
+    }
+    @media print {
+      body {
+        padding: 20px;
+      }
+      h2 {
+        page-break-after: avoid;
+      }
+      .toc, table, .note, .tip {
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<h1>証憑AI Scan 使い方ガイド</h1>
+<p>スマホで簡単！レシートをAIで自動仕訳</p>
+
+<hr>
+
+<h2>はじめに</h2>
+<p>このアプリは、レシートや領収書の写真を撮るだけで、AIが自動的に仕訳データを作成してくれるツールです。確定申告や経理作業の手間を大幅に減らせます。</p>
+
+<div class="url-box">
+  <strong>アプリURL</strong>
+  https://shohyo-ai-scan.vercel.app/
+</div>
+
+<hr>
+
+<div class="toc">
+  <h3>目次</h3>
+  <ol>
+    <li>アプリをスマホに追加する</li>
+    <li>初期設定（APIキーの登録）</li>
+    <li>レシートを読み取る</li>
+    <li>読み取り結果を確認・修正する</li>
+    <li>データを保存・出力する</li>
+    <li>よくある質問</li>
+  </ol>
+</div>
+
+<hr>
+
+<h2>1. アプリをスマホに追加する</h2>
+<p>ブラウザで毎回URLを入力するのは面倒なので、ホーム画面に追加しましょう。</p>
+
+<h3>iPhoneの場合</h3>
+<ol>
+  <li>Safariでアプリを開く</li>
+  <li>画面下の「共有」ボタン（四角から矢印が出ているマーク）をタップ</li>
+  <li>「ホーム画面に追加」をタップ</li>
+  <li>「追加」をタップ</li>
+</ol>
+
+<h3>Androidの場合</h3>
+<ol>
+  <li>Chromeでアプリを開く</li>
+  <li>右上の「︙」（メニュー）をタップ</li>
+  <li>「ホーム画面に追加」をタップ</li>
+  <li>「追加」をタップ</li>
+</ol>
+
+<p>これでホーム画面にアイコンが追加され、アプリのように使えます。</p>
+
+<hr>
+
+<h2>2. 初期設定（APIキーの登録）</h2>
+<p>AIでレシートを読み取るには、Google Gemini APIキーが必要です（無料）。</p>
+
+<h3>APIキーの取得方法</h3>
+<ol>
+  <li><strong>Googleアカウントでログイン</strong>した状態で以下のページを開く<br>
+    <code>https://aistudio.google.com/app/apikey</code></li>
+  <li><strong>「APIキーを作成」</strong>をタップ</li>
+  <li>表示された長い文字列（APIキー）を<strong>長押しでコピー</strong></li>
+</ol>
+
+<h3>アプリにAPIキーを登録</h3>
+<ol>
+  <li>アプリを開く</li>
+  <li>上部の<strong>「マスタ設定」</strong>タブをタップ</li>
+  <li><strong>「Gemini APIキー」</strong>の入力欄にコピーしたキーを貼り付け</li>
+  <li>自動的に保存されます</li>
+</ol>
+
+<div class="note">APIキーは他の人に教えないでください。あなた専用のキーです。</div>
+
+<hr>
+
+<h2>3. レシートを読み取る</h2>
+
+<h3>基本の使い方</h3>
+<ol>
+  <li><strong>「スキャン」タブ</strong>を開く（最初から開いています）</li>
+  <li>画面中央の<strong>点線の枠</strong>をタップ</li>
+  <li><strong>「写真を撮る」</strong>または<strong>「ファイルを選択」</strong>を選ぶ
+    <ul>
+      <li>写真を撮る → カメラが起動してレシートを撮影</li>
+      <li>ファイルを選択 → 保存済みの画像を選ぶ</li>
+    </ul>
+  </li>
+  <li>画像が表示されたら<strong>「Gemini AIで解析」</strong>ボタンをタップ</li>
+  <li>数秒待つと、読み取り結果が表示されます</li>
+</ol>
+
+<h3>読み取れるもの</h3>
+<ul>
+  <li>レシート・領収書の写真</li>
+  <li>PDFファイル（請求書など）</li>
+  <li>CSVファイル（銀行明細など）</li>
+</ul>
+
+<div class="tip">
+  レシートは<strong>明るい場所</strong>で撮影し、文字が<strong>はっきり見える</strong>ように撮りましょう。折り目やシワを伸ばしてから撮ると精度が上がります。
+</div>
+
+<hr>
+
+<h2>4. 読み取り結果を確認・修正する</h2>
+<p>AIが読み取った結果は、表形式で表示されます。</p>
+
+<h3>表示される項目</h3>
+<table>
+  <tr>
+    <th>項目</th>
+    <th>説明</th>
+  </tr>
+  <tr>
+    <td>日付</td>
+    <td>取引日（レシートの日付）</td>
+  </tr>
+  <tr>
+    <td>摘要</td>
+    <td>取引内容（店名や品目）</td>
+  </tr>
+  <tr>
+    <td>金額</td>
+    <td>支払った金額</td>
+  </tr>
+  <tr>
+    <td>勘定科目</td>
+    <td>経費の種類（消耗品費など）</td>
+  </tr>
+  <tr>
+    <td>税区分</td>
+    <td>消費税の区分</td>
+  </tr>
+</table>
+
+<h3>修正方法</h3>
+<ol>
+  <li>修正したい項目をタップ</li>
+  <li>正しい内容を入力</li>
+  <li>自動的に保存されます</li>
+</ol>
+
+<h3>取引を削除したい場合</h3>
+<ul>
+  <li>各行の右端にある<strong>ゴミ箱アイコン</strong>をタップ</li>
+  <li>間違えて削除しても<strong>「元に戻す」</strong>ボタンで復活できます</li>
+</ul>
+
+<h3>収入/支出を切り替えたい場合</h3>
+<ul>
+  <li>金額の左にある<strong>矢印アイコン</strong>をタップすると切り替わります</li>
+</ul>
+
+<hr>
+
+<h2>5. データを保存・出力する</h2>
+
+<h3>履歴に保存する</h3>
+<p>読み取った内容を後で使いたい場合：</p>
+<ol>
+  <li><strong>「履歴に保存」</strong>ボタンをタップ</li>
+  <li>わかりやすい名前を入力（例：「2024年1月分レシート」）</li>
+  <li><strong>「保存」</strong>をタップ</li>
+</ol>
+<p>保存した履歴は画面下部の<strong>「出力履歴」</strong>に表示されます。</p>
+
+<h3>CSVファイルを出力する</h3>
+<p>会計ソフト（Money Forwardなど）に取り込むためのファイルを作成：</p>
+<ol>
+  <li><strong>「CSV出力」</strong>ボタンをタップ</li>
+  <li>ファイルが自動的にダウンロードされます</li>
+</ol>
+
+<h3>出力したファイルの場所</h3>
+<ul>
+  <li><strong>iPhone:</strong> 「ファイル」アプリ → 「ダウンロード」フォルダ</li>
+  <li><strong>Android:</strong> 「ファイル」アプリ → 「ダウンロード」フォルダ</li>
+</ul>
+
+<hr>
+
+<h2>6. よくある質問</h2>
+
+<div class="qa">
+  <h4>Q. APIキーは有料ですか？</h4>
+  <p><strong>A.</strong> 無料で使えます。Googleが提供する無料枠の範囲内であれば課金されません。個人利用であれば、ほぼ無料枠で収まります。</p>
+</div>
+
+<div class="qa">
+  <h4>Q. データはどこに保存されますか？</h4>
+  <p><strong>A.</strong> すべてのデータはあなたのスマホ（ブラウザ）内に保存されます。インターネット上のサーバーには保存されないので、安心してご利用ください。</p>
+</div>
+
+<div class="qa">
+  <h4>Q. 読み取り精度が悪いときは？</h4>
+  <p><strong>A.</strong> 以下をお試しください：</p>
+  <ul>
+    <li>写真を明るい場所で撮り直す</li>
+    <li>レシートのシワを伸ばす</li>
+    <li>手動AI入力モード（AIアイコンボタン）で、ChatGPTやClaudeを使う</li>
+  </ul>
+</div>
+
+<div class="qa">
+  <h4>Q. 複数の会社の経理を管理できますか？</h4>
+  <p><strong>A.</strong> はい。画面上部のタブで会社（クライアント）を切り替えられます。「＋」ボタンで新しい会社を追加できます。</p>
+</div>
+
+<div class="qa">
+  <h4>Q. スマホを変えたらデータは消えますか？</h4>
+  <p><strong>A.</strong> はい、現在はスマホ内にのみ保存されるため、機種変更するとデータは引き継がれません。大切なデータは<strong>CSV出力</strong>してバックアップしておくことをおすすめします。</p>
+</div>
+
+<div class="qa">
+  <h4>Q. オフラインで使えますか？</h4>
+  <p><strong>A.</strong> 画面の表示や過去の履歴閲覧はオフラインでも可能ですが、AI解析にはインターネット接続が必要です。</p>
+</div>
+
+<hr>
+
+<p style="text-align: center; color: #999; margin-top: 40px;">
+  証憑AI Scan 使い方ガイド<br>
+  2025年1月版
+</p>
+
+</body>
+</html>
