@@ -41,7 +41,7 @@ export const Toast: React.FC<ToastProps> = ({ message, type, onClose, duration =
     }
   };
 
-  const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+  const bgColor = type === 'success' ? 'bg-green-600' : 'bg-red-600';
   const Icon = type === 'success' ? CheckCircle2 : AlertCircle;
 
   return (
@@ -52,13 +52,13 @@ export const Toast: React.FC<ToastProps> = ({ message, type, onClose, duration =
       role="alert"
       aria-live="polite"
     >
-      <div className={`${bgColor} text-white px-6 py-4 rounded-2xl shadow-lg flex items-center gap-3 min-w-[280px] max-w-[90vw]`}>
+      <div className={`${bgColor} text-white px-5 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-[280px] max-w-[90vw]`}>
         <Icon className="w-5 h-5 flex-shrink-0" />
-        <span className="font-medium flex-1">{message}</span>
+        <span className="font-medium flex-1 text-sm">{message}</span>
         {action && (
           <button
             onClick={handleAction}
-            className="flex items-center gap-1 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg transition-colors font-medium text-sm"
+            className="flex items-center gap-1 px-3 py-1 bg-white/20 hover:bg-white/30 rounded transition-colors font-medium text-sm"
           >
             <Undo2 className="w-3.5 h-3.5" />
             {action.label}
@@ -66,7 +66,7 @@ export const Toast: React.FC<ToastProps> = ({ message, type, onClose, duration =
         )}
         <button
           onClick={handleClose}
-          className="p-1 hover:bg-white/20 rounded-full transition-colors"
+          className="p-1 hover:bg-white/20 rounded transition-colors"
           aria-label="閉じる"
         >
           <X className="w-4 h-4" />

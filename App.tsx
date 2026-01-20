@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ReceiptJapaneseYen, Receipt, Settings } from 'lucide-react';
+import { Receipt, Settings } from 'lucide-react';
 import { ScannerTab } from './components/ScannerTab';
 import { MasterTab } from './components/MasterTab';
 import { AppTab } from './types';
@@ -18,7 +18,7 @@ type AccountMasterMap = Record<string, string[]>; // clientName -> accounts[]
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AppTab>(AppTab.SCANNER);
   const [geminiApiKey, setGeminiApiKey] = useState<string>('');
-  const [geminiModel, setGeminiModel] = useState<GeminiModelId>('gemini-2.5-flash');
+  const [geminiModel, setGeminiModel] = useState<GeminiModelId>('gemini-3-flash-preview');
   const [customTaxCategories, setCustomTaxCategories] = useState<string[]>([]);
   const [clients, setClients] = useState<string[]>(['株式会社サンプル']);
   const [accountMasters, setAccountMasters] = useState<AccountMasterMap>({});
@@ -106,32 +106,30 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF8F0] flex flex-col font-rounded text-stone-700">
+    <div className="min-h-screen bg-[#FAFAF9] flex flex-col text-slate-700">
       {/* Header */}
-      <header className="sticky top-4 z-50 px-4 mb-4">
-        <div className="max-w-5xl mx-auto h-20 bg-white/80 backdrop-blur-md rounded-3xl shadow-lg shadow-orange-100/50 border-2 border-white flex items-center justify-between px-6">
+      <header className="sticky top-0 z-50 bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-orange-500 p-2.5 rounded-2xl text-white shadow-md shadow-orange-200 rotate-3 transition-transform hover:rotate-6">
-              <ReceiptJapaneseYen className="w-6 h-6" />
+            <div className="w-9 h-9 bg-orange-600 rounded-lg flex items-center justify-center">
+              <Receipt className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold text-stone-800 tracking-tight leading-none">
-                AI会計スキャン
-              </h1>
-              <p className="text-[11px] text-stone-400 font-bold mt-0.5">証憑をパシャっとデータ化！</p>
+              <h1 className="text-lg font-semibold text-slate-800">仕訳アシスタント</h1>
+              <p className="text-xs text-slate-500">AI証憑解析・仕訳作成支援</p>
             </div>
           </div>
 
           {/* Tab Navigation */}
-          <nav className="flex gap-2" role="tablist" aria-label="メイン機能">
+          <nav className="flex gap-1" role="tablist" aria-label="メイン機能">
             <button
               role="tab"
               aria-selected={activeTab === AppTab.SCANNER}
               onClick={() => setActiveTab(AppTab.SCANNER)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
                 activeTab === AppTab.SCANNER
-                  ? 'bg-orange-500 text-white shadow-md'
-                  : 'bg-stone-100 text-stone-500 hover:bg-orange-100 hover:text-orange-600'
+                  ? 'bg-orange-600 text-white'
+                  : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
               <Receipt className="w-4 h-4" />
@@ -141,21 +139,21 @@ const App: React.FC = () => {
               role="tab"
               aria-selected={activeTab === AppTab.MASTER}
               onClick={() => setActiveTab(AppTab.MASTER)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
                 activeTab === AppTab.MASTER
-                  ? 'bg-orange-500 text-white shadow-md'
-                  : 'bg-stone-100 text-stone-500 hover:bg-orange-100 hover:text-orange-600'
+                  ? 'bg-orange-600 text-white'
+                  : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
               <Settings className="w-4 h-4" />
-              <span className="hidden sm:inline">マスタ設定</span>
+              <span className="hidden sm:inline">設定</span>
             </button>
           </nav>
         </div>
       </header>
 
       {/* Main Content - Both tabs are always rendered but hidden via CSS to preserve state */}
-      <main className="flex-1 px-4 sm:px-8 pb-12 overflow-y-auto">
+      <main className="flex-1 px-4 sm:px-6 py-6 overflow-y-auto">
         <div className={activeTab === AppTab.SCANNER ? '' : 'hidden'}>
           <ScannerTab
             geminiApiKey={geminiApiKey}
@@ -178,7 +176,7 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      <footer className="py-8 text-center text-stone-400 text-xs font-medium">
+      <footer className="py-6 text-center text-slate-400 text-xs">
         <p>ChatGPT / Claude Web / Gemini API対応</p>
       </footer>
     </div>
