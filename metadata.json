@@ -1,7 +1,0 @@
-{
-  "name": "証憑 AI Scan",
-  "description": "Digitize bank books and credit card statements into Money Forward compatible CSVs using Gemini AI. Includes advanced image generation tools.",
-  "requestFramePermissions": [
-    "camera"
-  ]
-}
