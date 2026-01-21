@@ -733,7 +733,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
                             value={t.kamoku || ''}
                             placeholder={t.amount < 0 ? '仮払金' : '仮受金'}
                             onChange={e => updateTransaction(t.id, 'kamoku', e.target.value)}
-                            className={`w-full bg-white px-2 py-2 rounded-lg border border-slate-300 outline-none focus:border-orange-500 text-sm font-medium ${t.kamoku?.includes('仮') ? 'text-orange-600' : 'text-slate-700'}`}
+                            className={`w-full bg-white px-2 py-2 rounded-lg border border-slate-300 outline-none focus:border-orange-500 text-sm font-medium ${t.amount < 0 ? 'text-red-600' : 'text-blue-600'}`}
                           />
                         </div>
                         <div>
@@ -755,15 +755,18 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
                           aria-label="金額"
                         />
                       </div>
-                      {/* T番号 */}
+                      {/* インボイス区分 */}
                       <div className="pt-2 mt-2 border-t border-slate-200">
                         <label className="text-xs text-slate-500 block mb-1">インボイス区分</label>
-                        <input
+                        <select
                           value={t.invoiceNumber || ''}
                           onChange={e => updateTransaction(t.id, 'invoiceNumber', e.target.value)}
-                          placeholder="適格 / 非適格"
-                          className="w-full bg-white px-2 py-2 rounded-lg border border-slate-300 outline-none focus:border-orange-500 text-xs font-mono"
-                        />
+                          className="w-full bg-white px-2 py-2 rounded-lg border border-slate-300 outline-none focus:border-orange-500 text-xs"
+                        >
+                          <option value="">未選択</option>
+                          <option value="適格">適格</option>
+                          <option value="非適格">非適格</option>
+                        </select>
                       </div>
                       {/* 税区分 */}
                       <div className="pt-2 mt-2 border-t border-slate-200">
@@ -823,7 +826,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
                                 value={t.kamoku || ''}
                                 placeholder={t.amount < 0 ? '仮払金' : '仮受金'}
                                 onChange={e => updateTransaction(t.id, 'kamoku', e.target.value)}
-                                className={`w-full bg-transparent px-2 py-1 outline-none focus:bg-white rounded border border-transparent focus:border-orange-500 font-medium ${t.kamoku?.includes('仮') ? 'text-orange-600' : 'text-slate-700'}`}
+                                className={`w-full bg-transparent px-2 py-1 outline-none focus:bg-white rounded border border-transparent focus:border-orange-500 font-medium ${t.amount < 0 ? 'text-red-600' : 'text-blue-600'}`}
                                 aria-label="相手勘定科目"
                               />
                               {learningRules[t.description] && learningRules[t.description].kamoku === t.kamoku && (
@@ -856,13 +859,16 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
                             />
                           </td>
                           <td className="p-3">
-                            <input
+                            <select
                               value={t.invoiceNumber || ''}
                               onChange={e => updateTransaction(t.id, 'invoiceNumber', e.target.value)}
-                              placeholder="適格 / 非適格"
-                              className="w-full bg-transparent px-2 py-1 outline-none focus:bg-white rounded border border-transparent focus:border-orange-500 text-xs font-mono text-slate-600"
+                              className="w-full bg-transparent px-2 py-1 outline-none focus:bg-white rounded border border-transparent focus:border-orange-500 text-xs"
                               aria-label="インボイス区分"
-                            />
+                            >
+                              <option value="">未選択</option>
+                              <option value="適格">適格</option>
+                              <option value="非適格">非適格</option>
+                            </select>
                           </td>
                           <td className="p-3">
                             <select
