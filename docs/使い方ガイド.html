@@ -19,6 +19,7 @@
       border-radius: 0 8px 8px 0; }
     h3 { font-size: 16px; color: #444; margin-top: 25px; margin-bottom: 10px;
       padding-left: 10px; border-left: 3px solid #fed7aa; }
+    h4 { font-size: 15px; color: #ea580c; margin-top: 20px; margin-bottom: 8px; }
     p { margin-bottom: 15px; }
     ul, ol { margin-left: 25px; margin-bottom: 15px; }
     li { margin-bottom: 8px; }
@@ -37,13 +38,17 @@
     .note::before { content: "注意: "; font-weight: bold; color: #b45309; }
     .tip { background: #dcfce7; border-left: 4px solid #22c55e; padding: 12px 15px;
       margin: 15px 0; border-radius: 0 8px 8px 0; }
-    .tip::before { content: "コツ: "; font-weight: bold; color: #16a34a; }
+    .tip::before { content: "ポイント: "; font-weight: bold; color: #16a34a; }
     .toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
       padding: 20px 25px; margin: 20px 0; }
     .toc h3 { margin-top: 0; border: none; padding: 0; color: #ea580c; }
     .toc ol { margin-bottom: 0; }
     .qa { margin-bottom: 20px; }
     .qa h4 { color: #ea580c; margin-bottom: 8px; }
+    .troubleshoot { background: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 15px;
+      margin: 15px 0; border-radius: 0 8px 8px 0; }
+    .troubleshoot h4 { color: #dc2626; margin-bottom: 8px; font-size: 14px; }
+    .troubleshoot ul { margin-bottom: 0; }
     hr { border: none; border-top: 1px solid #e5e5e5; margin: 30px 0; }
     @media print {
       body { padding: 20px; }
@@ -77,8 +82,10 @@
     <li>AIモデルを選択する</li>
     <li>マスタ設定を行う</li>
     <li>レシートを読み取る</li>
+    <li>AIおまかせモード</li>
     <li>読み取り結果を確認・修正する</li>
     <li>データを保存・出力する</li>
+    <li>トラブルシューティング</li>
     <li>よくある質問</li>
   </ol>
 </div>
@@ -120,7 +127,7 @@
 <h3>アプリにAPIキーを登録</h3>
 <ol>
   <li>アプリを開く</li>
-  <li>上部の<strong>「マスタ設定」</strong>タブをタップ</li>
+  <li>上部の<strong>「設定」</strong>タブをタップ</li>
   <li><strong>「Gemini APIキー」</strong>の入力欄にコピーしたキーを貼り付け</li>
   <li>自動的に保存されます</li>
 </ol>
@@ -130,7 +137,7 @@
 <hr>
 
 <h2>3. AIモデルを選択する</h2>
-<p>マスタ設定タブの「AIモデル選択」で、使用するモデルを選べます。</p>
+<p>設定タブの「AIモデル選択」で、使用するモデルを選べます。</p>
 
 <table>
   <tr><th>モデル</th><th>特徴</th></tr>
@@ -146,7 +153,7 @@
 <hr>
 
 <h2>4. マスタ設定を行う</h2>
-<p>マスタ設定タブでは、会社ごとの勘定科目や補助科目を設定できます。</p>
+<p>設定タブでは、会社ごとの勘定科目や補助科目を設定できます。</p>
 
 <h3>元帳補助科目の設定</h3>
 <p>会社ごとに、元帳種別に応じた補助科目を複数登録できます。</p>
@@ -171,6 +178,14 @@
   現金と短期借入金は別々の補助科目リストを持っています。スキャン時に「現金」「短期借入金」ボタンで切り替えると、対応する補助科目リストが自動的に表示されます。
 </div>
 
+<h3>勘定科目の設定</h3>
+<p>よく使う勘定科目を追加・削除できます。</p>
+<ol>
+  <li><strong>「勘定科目マスタ」</strong>セクションで会社を選択</li>
+  <li>勘定科目をクリックして展開</li>
+  <li><strong>「補助科目を追加」</strong>で補助科目を登録</li>
+</ol>
+
 <hr>
 
 <h2>5. レシートを読み取る</h2>
@@ -178,40 +193,102 @@
 <h3>基本の使い方</h3>
 <ol>
   <li><strong>「スキャン」タブ</strong>を開く</li>
-  <li><strong>元帳の種類</strong>を選択する（「現金」「預金」「クレカ」）
-    <ul>
-      <li>現金：現金払いのレシート（税区分はAIが自動判定）
-        <ul><li>さらに「現金」または「短期借入金」を選択可能</li></ul>
-      </li>
-      <li>預金：銀行引き落としなど（税区分は「対象外」、インボイス区分は「非適格」がデフォルト）</li>
-      <li>クレカ：クレジットカード払い（税区分は「対象外」、インボイス区分は「非適格」がデフォルト）</li>
-    </ul>
-  </li>
+  <li><strong>元帳の種類</strong>を選択する（「現金」「預金」「クレカ」）</li>
+</ol>
+
+<h3>元帳種別の違い</h3>
+<table>
+  <tr><th>種別</th><th>用途</th><th>貸方科目</th><th>税区分</th><th>インボイス</th></tr>
+  <tr><td>現金</td><td>現金払いレシート</td><td>現金 or 短期借入金</td><td>AI判定</td><td>AI判定</td></tr>
+  <tr><td>預金</td><td>銀行引き落とし</td><td>普通預金</td><td>対象外</td><td>非適格</td></tr>
+  <tr><td>クレカ</td><td>カード払い</td><td>未払金</td><td>対象外</td><td>非適格</td></tr>
+</table>
+
+<p><strong>なぜ預金・クレカは「対象外」「非適格」？</strong><br>
+→ 銀行明細やカード明細は適格請求書ではないため、証憑としてはインボイス非対応となります。</p>
+
+<p><strong>現金の追加オプション:</strong></p>
+<ul>
+  <li>「現金」：通常の現金出納</li>
+  <li>「短期借入金」：立替払い（役員立替など）</li>
+</ul>
+
+<h3>読み取り手順</h3>
+<ol>
   <li>画面中央の<strong>点線の枠</strong>をタップ</li>
   <li><strong>「写真を撮る」</strong>または<strong>「ファイルを選択」</strong>を選ぶ</li>
-  <li>画像が表示されたら<strong>「Gemini AIで解析」</strong>ボタンをタップ</li>
+  <li>画像が表示されたら<strong>「AI自動解析」</strong>ボタンをタップ</li>
   <li>数秒待つと、読み取り結果が表示されます</li>
 </ol>
 
-<div class="note">預金・クレカを選んだ場合、AI解析後に税区分が自動的に「対象外」、インボイス区分が「非適格」に設定されます。これは銀行明細やクレジットカード明細は適格請求書ではないためです。</div>
+<h3>読み取れるもの</h3>
+<ul>
+  <li>レシート・領収書の写真</li>
+  <li>PDFファイル（請求書など）</li>
+  <li>CSVファイル（銀行明細など）</li>
+</ul>
 
 <div class="tip">
-  レシートは<strong>明るい場所</strong>で撮影し、文字が<strong>はっきり見える</strong>ように撮りましょう。
+  レシートは<strong>明るい場所</strong>で撮影し、文字が<strong>はっきり見える</strong>ように撮りましょう。折り目やシワを伸ばしてから撮ると精度が上がります。
 </div>
 
 <hr>
 
-<h2>6. 読み取り結果を確認・修正する</h2>
+<h2>6. AIおまかせモード</h2>
+<p>勘定科目をAIに自動判定させる機能です。</p>
 
+<h3>有効化方法</h3>
+<ol>
+  <li>スキャンタブで画像をアップロード</li>
+  <li>「AI自動解析」ボタンの下にある<strong>「AIおまかせモード」トグル</strong>をONにする</li>
+  <li>「AI自動解析」ボタンをクリックすると、AIが勘定科目を自動推測</li>
+</ol>
+
+<h3>判定ルール</h3>
+<table>
+  <tr><th>取引内容</th><th>金額条件</th><th>勘定科目</th></tr>
+  <tr><td>飲食（クライアントとの会食等）</td><td>税抜20,000円以下</td><td>会議費</td></tr>
+  <tr><td>飲食（クライアントとの会食等）</td><td>税抜20,000円超</td><td>接待交際費</td></tr>
+  <tr><td>手土産・贈答品</td><td>3,000円以上</td><td>接待交際費</td></tr>
+  <tr><td>交通費</td><td>-</td><td>旅費交通費</td></tr>
+  <tr><td>事務用品・文房具</td><td>-</td><td>消耗品費</td></tr>
+  <tr><td>判別不能な支出</td><td>-</td><td>仮払金</td></tr>
+  <tr><td>判別不能な収入</td><td>-</td><td>仮受金</td></tr>
+</table>
+
+<h3>注意点</h3>
+<ul>
+  <li><strong>学習ルールが優先</strong>: 過去に手動で勘定科目を設定した取引先は、学習ルールが優先されます</li>
+  <li><strong>手土産の判定</strong>: レシートに「お土産」「贈答」等の文字がある場合のみ判定されます</li>
+  <li><strong>判別できない場合</strong>: 「仮払金」「仮受金」になるので、後から手動で修正してください</li>
+</ul>
+
+<div class="tip">
+  AIおまかせモードがOFFの場合、すべての勘定科目は「仮払金」または「仮受金」になります。後からまとめて勘定科目を指定する場合は、「CSV出力時の勘定科目（事前選択）」で一括設定できます。
+</div>
+
+<hr>
+
+<h2>7. 読み取り結果を確認・修正する</h2>
+<p>AIが読み取った結果は、表形式で表示されます。</p>
+
+<h3>表示される項目</h3>
 <table>
   <tr><th>項目</th><th>説明</th></tr>
   <tr><td>日付</td><td>取引日（レシートの日付）</td></tr>
   <tr><td>摘要</td><td>取引内容（店名や品目）</td></tr>
-  <tr><td>金額</td><td>支払った金額</td></tr>
-  <tr><td>勘定科目</td><td>経費の種類（消耗品費など）</td></tr>
-  <tr><td>税区分</td><td>消費税の区分（課税仕入10%、課税仕入8%、対象外など）</td></tr>
-  <tr><td>インボイス区分</td><td>適格/非適格の区分</td></tr>
+  <tr><td>金額</td><td>支払った金額（支払=赤、入金=青で表示）</td></tr>
+  <tr><td>勘定科目</td><td>経費の種類（消耗品費など）※支払=赤、入金=青で表示</td></tr>
+  <tr><td>税区分</td><td>消費税の区分 - プルダウンから選択</td></tr>
+  <tr><td>インボイス区分</td><td>適格/非適格の区分 - プルダウンから選択</td></tr>
 </table>
+
+<h3>修正方法</h3>
+<ol>
+  <li>修正したい項目をタップ</li>
+  <li>正しい内容を入力</li>
+  <li>自動的に保存されます</li>
+</ol>
 
 <h3>取引を削除したい場合</h3>
 <ul>
@@ -219,16 +296,20 @@
   <li>間違えて削除しても、画面下部の通知の<strong>「元に戻す」</strong>ボタンで復活できます（5秒以内）</li>
 </ul>
 
+<h3>収入/支出を切り替えたい場合</h3>
+<p>金額の左にある<strong>矢印アイコン</strong>をタップすると切り替わります</p>
+
 <hr>
 
-<h2>7. データを保存・出力する</h2>
+<h2>8. データを保存・出力する</h2>
 
 <h3>履歴に保存する</h3>
 <ol>
-  <li><strong>「履歴に保存」</strong>ボタンをタップ</li>
-  <li>わかりやすい名前を入力</li>
+  <li><strong>「ストック保存」</strong>ボタンをタップ</li>
+  <li>わかりやすい名前を入力（例：「2024年1月分レシート」）</li>
   <li><strong>「保存」</strong>をタップ</li>
 </ol>
+<p>保存した履歴は画面下部の<strong>「出力履歴」</strong>に表示されます。</p>
 
 <h3>CSVファイルを出力する</h3>
 <ol>
@@ -236,43 +317,126 @@
   <li>ファイルが自動的にダウンロードされます</li>
 </ol>
 
+<h3>出力したファイルの場所</h3>
+<ul>
+  <li><strong>iPhone:</strong> 「ファイル」アプリ → 「ダウンロード」フォルダ</li>
+  <li><strong>Android:</strong> 「ファイル」アプリ → 「ダウンロード」フォルダ</li>
+</ul>
+
 <hr>
 
-<h2>8. よくある質問</h2>
+<h2>9. トラブルシューティング</h2>
+
+<div class="troubleshoot">
+  <h4>「APIキーが無効です」と表示される</h4>
+  <ul>
+    <li>APIキーが正しくコピーされているか確認してください</li>
+    <li>キーの前後に空白が入っていないか確認してください</li>
+    <li>Google AI Studioで新しいキーを発行してお試しください</li>
+  </ul>
+</div>
+
+<div class="troubleshoot">
+  <h4>「レート制限に達しました」と表示される</h4>
+  <ul>
+    <li>数分待ってから再試行してください</li>
+    <li>無料枠の上限に達した可能性があります（通常は翌日にリセット）</li>
+    <li>有料モデルを使用している場合は、課金状況を確認してください</li>
+  </ul>
+</div>
+
+<div class="troubleshoot">
+  <h4>読み取り結果が空になる</h4>
+  <ul>
+    <li>画像が不鮮明な可能性があります。明るい場所で撮り直してください</li>
+    <li>PDFが画像ベースでない可能性があります</li>
+    <li>ファイルサイズが大きすぎる場合、読み込みに失敗することがあります</li>
+  </ul>
+</div>
+
+<div class="troubleshoot">
+  <h4>金額が正しく読み取れない</h4>
+  <ul>
+    <li>レシートの合計金額が見切れていないか確認してください</li>
+    <li>複数の金額がある場合、小計・税・合計が混在して誤認識されることがあります</li>
+    <li>読み取り後に手動で修正してください</li>
+  </ul>
+</div>
+
+<div class="troubleshoot">
+  <h4>CSVファイルが文字化けする</h4>
+  <ul>
+    <li>CSVファイルはUTF-8（BOM付き）で出力されます</li>
+    <li>Excelで開く場合は「データ」→「テキストから」で「UTF-8」を選択してください</li>
+    <li>Money Forwardへのインポートでは文字化けしません</li>
+  </ul>
+</div>
+
+<hr>
+
+<h2>10. よくある質問</h2>
 
 <div class="qa">
   <h4>Q. APIキーは有料ですか？</h4>
-  <p><strong>A.</strong> 無料で使えます。個人利用であれば、ほぼ無料枠で収まります。</p>
+  <p><strong>A.</strong> 無料で使えます。Googleが提供する無料枠の範囲内であれば課金されません。個人利用であれば、ほぼ無料枠で収まります。</p>
 </div>
 
 <div class="qa">
   <h4>Q. データはどこに保存されますか？</h4>
-  <p><strong>A.</strong> すべてのデータはあなたのスマホ（ブラウザ）内に保存されます。</p>
+  <p><strong>A.</strong> すべてのデータはあなたのスマホ（ブラウザ）内に保存されます。インターネット上のサーバーには保存されないので、安心してご利用ください。</p>
 </div>
 
 <div class="qa">
   <h4>Q. 読み取り精度が悪いときは？</h4>
   <ul>
     <li>写真を明るい場所で撮り直す</li>
-    <li>マスタ設定でより高精度なモデルを選択</li>
+    <li>レシートのシワを伸ばす</li>
+    <li>設定でより高精度なモデル（Gemini 3 Pro等）を選択</li>
   </ul>
 </div>
 
 <div class="qa">
+  <h4>Q. 複数の会社の経理を管理できますか？</h4>
+  <p><strong>A.</strong> はい。画面上部のタブで会社（クライアント）を切り替えられます。「＋」ボタンで新しい会社を追加できます。</p>
+</div>
+
+<div class="qa">
+  <h4>Q. スマホを変えたらデータは消えますか？</h4>
+  <p><strong>A.</strong> はい、現在はスマホ内にのみ保存されるため、機種変更するとデータは引き継がれません。大切なデータは<strong>CSV出力</strong>してバックアップしておくことをおすすめします。</p>
+</div>
+
+<div class="qa">
+  <h4>Q. オフラインで使えますか？</h4>
+  <p><strong>A.</strong> 画面の表示や過去の履歴閲覧はオフラインでも可能ですが、AI解析にはインターネット接続が必要です。</p>
+</div>
+
+<div class="qa">
   <h4>Q. 間違えて取引を削除してしまいました</h4>
-  <p><strong>A.</strong> 削除直後に画面下部に表示される通知の「元に戻す」ボタンをタップすると復活できます。</p>
+  <p><strong>A.</strong> 削除直後に画面下部に表示される緑色の通知の「元に戻す」ボタンをタップすると復活できます。通知は5秒で消えるので、すぐにタップしてください。</p>
 </div>
 
 <div class="qa">
   <h4>Q. タブを切り替えるとデータが消える？</h4>
-  <p><strong>A.</strong> いいえ、タブを切り替えてもデータは保持されます。</p>
+  <p><strong>A.</strong> いいえ、スキャンタブと設定タブを切り替えても、入力中のデータは保持されます。</p>
 </div>
+
+<hr>
+
+<h2>更新履歴</h2>
+<ul>
+  <li>2025年1月：初版公開</li>
+  <li>2025年1月：AIモデル選択機能、削除の元に戻す機能を追加</li>
+  <li>2026年1月：元帳種類ボタンを短縮、税区分自動設定、AIモデルのデフォルト変更</li>
+  <li>2026年1月：インボイス区分プルダウン化、色分け改善</li>
+  <li>2026年1月：現金と短期借入金の補助科目を分離</li>
+  <li>2026年1月：AIおまかせモード改善、使い方ガイド詳細化</li>
+</ul>
 
 <hr>
 
 <p style="text-align: center; color: #999; margin-top: 40px;">
   仕訳アシスタント 使い方ガイド<br>
-  2026年1月版（短期借入金補助科目対応）
+  2026年1月版（AIおまかせモード対応）
 </p>
 
 </body>
