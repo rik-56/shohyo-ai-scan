@@ -4,6 +4,7 @@ import { Transaction, HistoryBatch, AccountMasterMap, AccountMasterConfig } from
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Toast, useToast } from './Toast';
 import { analyzeWithGemini, AnalysisError, errorMessages, GeminiModelId } from '../services/geminiService';
+import { DEFAULT_ACCOUNTS, DEFAULT_TAX_CATEGORIES } from '../constants';
 
 // Props interface for ScannerTab
 interface ScannerTabProps {
@@ -14,25 +15,6 @@ interface ScannerTabProps {
   onClientAdd?: (clientName: string) => void;
   onClientDelete?: (clientName: string) => void;
 }
-
-// Common account items for autocomplete
-const COMMON_KAMOKU = [
-  '旅費交通費', '消耗品費', '接待交際費', '通信費', '水道光熱費',
-  '地代家賃', '租税公課', '保険料', '広告宣伝費', '支払手数料',
-  '会議費', '福利厚生費', '新聞図書費', '修繕費', '外注費',
-  '仮払金', '仮受金', '売掛金', '買掛金'
-];
-
-// Default tax categories
-const DEFAULT_TAX_CATEGORIES = [
-  '課税売上 10%',
-  '課税売上 (軽)8%',
-  '課税仕入 10%',
-  '課税仕入 (軽)8%',
-  '対象外仕入',
-  '非課税仕入',
-  '対象外'
-];
 
 // Storage keys moved to parent (App.tsx) for centralized management
 
@@ -211,7 +193,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
   // Get current client's account master config
   const currentClientMaster = useMemo(() => {
     return accountMasters[selectedClient] || {
-      accounts: COMMON_KAMOKU.map(name => ({ name, subAccounts: [] })),
+      accounts: DEFAULT_ACCOUNTS.map(name => ({ name, subAccounts: [] })),
       ledgerSubAccounts: { cash: [], shortTermLoan: [], deposit: [], credit: [] }
     };
   }, [accountMasters, selectedClient]);

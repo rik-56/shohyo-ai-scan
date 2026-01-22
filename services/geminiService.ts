@@ -52,7 +52,9 @@ export const getAnalysisPrompt = (autoKamoku: boolean = false): string => {
      - 旅費交通費: Transportation, taxi, train, airplane, parking
      - 消耗品費: Office supplies, small items
      - 会議費: Business meetings, coffee/meals with clients (ONLY if tax-excluded amount ≤ 20,000 yen)
-     - 接待交際費: Entertainment, gifts for clients, meals with clients (if tax-excluded amount > 20,000 yen)
+     - 接待交際費: Entertainment expenses. Use this for:
+       * Meals/dining with clients: if tax-excluded amount > 20,000 yen
+       * Gifts/souvenirs (手土産/お土産/贈答品/ギフト/菓子折り): if amount ≥ 3,000 yen
      - 通信費: Phone, internet, postage
      - 水道光熱費: Utilities (water, electricity, gas)
      - 地代家賃: Rent
@@ -68,7 +70,7 @@ export const getAnalysisPrompt = (autoKamoku: boolean = false): string => {
      - 売上高: Sales revenue
      - 受取利息: Interest income
      - 雑収入: Miscellaneous income
-   - **IMPORTANT**: Use "仮払金" for expense if uncertain (NEVER use 雑費). Use "仮受金" for income if uncertain.`
+   - **CRITICAL**: If you cannot clearly determine the account item, ALWAYS use "仮払金" for expenses and "仮受金" for income. Do NOT guess or use ambiguous categories. 雑費 is STRICTLY PROHIBITED.`
     : `4. **Account Item (勘定科目)**:
    - **STRICT RULE**: Return NULL (or empty string) for ALL transactions.
    - Do not attempt to guess the account item (e.g., do not guess "Travel Expense" for a taxi).

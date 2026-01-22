@@ -2,24 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Settings, Key, Eye, EyeOff, CheckCircle2, Plus, X, Tag, Briefcase, BookOpen, Cpu, ChevronDown, ChevronRight, Coins, Landmark, CreditCard } from 'lucide-react';
 import { GEMINI_MODELS, GeminiModelId } from '../services/geminiService';
 import { AccountMasterConfig, AccountMasterMap, AccountWithSubAccounts } from '../types';
-
-// Default tax categories
-const DEFAULT_TAX_CATEGORIES = [
-  '課税売上 10%',
-  '課税売上 (軽)8%',
-  '課税仕入 10%',
-  '課税仕入 (軽)8%',
-  '対象外仕入',
-  '非課税仕入'
-];
-
-// Default accounts for adding new ones
-const DEFAULT_ACCOUNTS = [
-  '旅費交通費', '消耗品費', '接待交際費', '通信費', '水道光熱費',
-  '地代家賃', '租税公課', '保険料', '広告宣伝費', '支払手数料',
-  '会議費', '福利厚生費', '新聞図書費', '修繕費', '外注費',
-  '仮払金', '仮受金', '売掛金', '買掛金'
-];
+import { DEFAULT_ACCOUNTS, DEFAULT_TAX_CATEGORIES } from '../constants';
 
 interface MasterTabProps {
   geminiApiKey: string;

@@ -4,6 +4,7 @@ import { ScannerTab } from './components/ScannerTab';
 import { MasterTab } from './components/MasterTab';
 import { AppTab, AccountMasterConfig, AccountMasterMap, AccountWithSubAccounts } from './types';
 import { GeminiModelId } from './services/geminiService';
+import { DEFAULT_ACCOUNTS } from './constants';
 
 // Storage keys for centralized settings
 const STORAGE_KEY_GEMINI_API_KEY = 'kakeibo_ai_gemini_api_key';
@@ -11,14 +12,6 @@ const STORAGE_KEY_GEMINI_MODEL = 'kakeibo_ai_gemini_model';
 const STORAGE_KEY_CUSTOM_TAX_CATEGORIES = 'kakeibo_ai_custom_tax_categories';
 const STORAGE_KEY_CLIENTS = 'kakeibo_ai_clients';
 const STORAGE_PREFIX_ACCOUNT_MASTER = 'kakeibo_ai_accounts_';
-
-// Common default accounts (shared)
-const DEFAULT_ACCOUNTS = [
-  '旅費交通費', '消耗品費', '接待交際費', '通信費', '水道光熱費',
-  '地代家賃', '租税公課', '保険料', '広告宣伝費', '支払手数料',
-  '会議費', '福利厚生費', '新聞図書費', '修繕費', '外注費',
-  '仮払金', '仮受金', '売掛金', '買掛金'
-];
 
 // 旧形式の型定義（マイグレーション用）
 type OldAccountMasterConfig = {
