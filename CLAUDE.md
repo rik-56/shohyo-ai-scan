@@ -37,9 +37,17 @@ scan/
 ### 元帳種別（ScannerTab.tsx）
 | 種別 | 基本科目 | 税区分デフォルト | インボイスデフォルト |
 |------|---------|-----------------|-------------------|
-| 現金 | 現金 | AIが判定 | AIが判定 |
+| 現金 | 現金 or 短期借入金（選択可） | AIが判定 | AIが判定 |
 | 預金 | 普通預金 | 対象外 | 非適格 |
 | クレカ | 未払金 | 対象外 | 非適格 |
+
+### 元帳補助科目（LedgerSubAccounts）
+| キー | 用途 | 説明 |
+|------|------|------|
+| cash | 現金 | 現金の補助科目リスト |
+| shortTermLoan | 短期借入金 | 短期借入金の補助科目リスト |
+| deposit | 普通預金 | 普通預金の補助科目リスト |
+| credit | 未払金 | 未払金の補助科目リスト |
 
 ### AIモデル（geminiService.ts）
 | モデルID | 名称 | 説明 |
@@ -91,8 +99,10 @@ interface Transaction {
 - `kakeibo_ai_gemini_api_key` - APIキー
 - `kakeibo_ai_gemini_model` - 選択モデル
 - `kakeibo_ai_clients` - クライアント一覧
+- `kakeibo_ai_accounts_[クライアント名]` - 勘定科目マスタ（LedgerSubAccounts含む）
 - `kakeibo_ai_rules_[クライアント名]` - 学習ルール
 - `kakeibo_ai_history` - 履歴
+- `kakeibo_ai_custom_tax_categories` - カスタム税区分
 
 ## 開発コマンド
 ```bash

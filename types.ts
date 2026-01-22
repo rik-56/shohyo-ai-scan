@@ -12,6 +12,28 @@ export interface Transaction {
   taxCategory?: string; // 税区分（課税仕入10%、軽減8%など）
 }
 
+// 勘定科目と紐づく補助科目
+export type AccountWithSubAccounts = {
+  name: string;           // 勘定科目名
+  subAccounts: string[];  // 補助科目リスト
+};
+
+// 元帳種別ごとの補助科目（複数対応）
+export type LedgerSubAccounts = {
+  cash: string[];           // 現金の補助科目リスト
+  shortTermLoan: string[];  // 短期借入金の補助科目リスト
+  deposit: string[];        // 普通預金の補助科目リスト
+  credit: string[];         // 未払金の補助科目リスト
+};
+
+// 拡張された勘定科目マスタ（会社別）
+export type AccountMasterConfig = {
+  accounts: AccountWithSubAccounts[];  // 勘定科目+補助科目
+  ledgerSubAccounts: LedgerSubAccounts; // 元帳補助科目
+};
+
+export type AccountMasterMap = Record<string, AccountMasterConfig>;
+
 export interface HistoryBatch {
   id: string;
   timestamp: number;

@@ -42,8 +42,38 @@ const normalizeDate = (dateStr: string): string => {
 /**
  * Returns the analysis prompt for manual AI mode.
  * Users can copy this prompt and paste it into ChatGPT/Claude web interface.
+ * @param autoKamoku - If true, AI will guess account items; otherwise returns null
  */
-export const getAnalysisPrompt = (): string => {
+export const getAnalysisPrompt = (autoKamoku: boolean = false): string => {
+  const kamokuInstruction = autoKamoku
+    ? `4. **Account Item (勘定科目) - AI推測モード**:
+   - Guess the most appropriate account item based on the description and transaction type.
+   - Common account items for expenses:
+     - 旅費交通費: Transportation, taxi, train, airplane, parking
+     - 消耗品費: Office supplies, small items
+     - 会議費: Business meetings, coffee/meals with clients (ONLY if tax-excluded amount ≤ 20,000 yen)
+     - 接待交際費: Entertainment, gifts for clients, meals with clients (if tax-excluded amount > 20,000 yen)
+     - 通信費: Phone, internet, postage
+     - 水道光熱費: Utilities (water, electricity, gas)
+     - 地代家賃: Rent
+     - 租税公課: Taxes, stamps, government fees
+     - 保険料: Insurance
+     - 広告宣伝費: Advertising
+     - 支払手数料: Service fees, bank fees
+     - 福利厚生費: Employee welfare
+     - 新聞図書費: Books, newspapers, subscriptions
+     - 修繕費: Repairs, maintenance
+     - 外注費: Outsourcing, subcontracting
+   - Common account items for income:
+     - 売上高: Sales revenue
+     - 受取利息: Interest income
+     - 雑収入: Miscellaneous income
+   - **IMPORTANT**: Use "仮払金" for expense if uncertain (NEVER use 雑費). Use "仮受金" for income if uncertain.`
+    : `4. **Account Item (勘定科目)**:
+   - **STRICT RULE**: Return NULL (or empty string) for ALL transactions.
+   - Do not attempt to guess the account item (e.g., do not guess "Travel Expense" for a taxi).
+   - The application logic handles defaults.`;
+
   return `You are an expert accountant AI. Analyze this document (Image, PDF, or CSV text) of a bank book, receipt, or credit card statement and extract transactions.
 
 Instructions:
@@ -77,10 +107,7 @@ Instructions:
      - **Ignore** subtotals (小計), tax (消費税), or change (お釣り). We only want the final total paid.
      - Handle separators correctly (e.g., "1,000" is 1000).
 
-4. **Account Item (勘定科目)**:
-   - **STRICT RULE**: Return NULL (or empty string) for ALL transactions.
-   - Do not attempt to guess the account item (e.g., do not guess "Travel Expense" for a taxi).
-   - The application logic handles defaults.
+${kamokuInstruction}
 
 5. **Sub-Account Item (補助科目)**:
    - Return NULL.
@@ -112,9 +139,9 @@ Instructions:
 **OUTPUT FORMAT**: Return ONLY a valid JSON array. No markdown, no code blocks, no explanation.
 Example:
 [
-  {"date": "2024/01/15", "description": "セブンイレブン", "amount": 1000, "type": "expense", "invoiceNumber": "適格", "taxCategory": "課税仕入 (軽)8%"},
-  {"date": "2024/01/15", "description": "文具店", "amount": 500, "type": "expense", "invoiceNumber": "非適格", "taxCategory": "課税仕入 10%"},
-  {"date": "2024/01/20", "description": "売上入金", "amount": 50000, "type": "income", "invoiceNumber": null, "taxCategory": "課税売上 10%"}
+  {"date": "2024/01/15", "description": "セブンイレブン", "amount": 1000, "type": "expense", "kamoku": ${autoKamoku ? '"消耗品費"' : 'null'}, "invoiceNumber": "適格", "taxCategory": "課税仕入 (軽)8%"},
+  {"date": "2024/01/15", "description": "文具店", "amount": 500, "type": "expense", "kamoku": ${autoKamoku ? '"消耗品費"' : 'null'}, "invoiceNumber": "非適格", "taxCategory": "課税仕入 10%"},
+  {"date": "2024/01/20", "description": "売上入金", "amount": 50000, "type": "income", "kamoku": ${autoKamoku ? '"売上高"' : 'null'}, "invoiceNumber": null, "taxCategory": "課税売上 10%"}
 ]`;
 };
 
@@ -224,20 +251,22 @@ export type GeminiModelId = typeof GEMINI_MODELS[number]['id'];
  * @param mimeType - MIME type of the file (e.g., 'image/jpeg', 'application/pdf')
  * @param apiKey - Google Gemini API key
  * @param model - Gemini model to use (default: gemini-2.0-flash)
+ * @param autoKamoku - If true, AI will guess account items
  * @returns Promise<Transaction[]> - Parsed transactions
  */
 export const analyzeWithGemini = async (
   fileData: string,
   mimeType: string,
   apiKey: string,
-  model: GeminiModelId = 'gemini-2.5-flash'
+  model: GeminiModelId = 'gemini-2.5-flash',
+  autoKamoku: boolean = false
 ): Promise<Transaction[]> => {
   // Remove data URL prefix if present
   const base64Data = fileData.includes(',')
     ? fileData.split(',')[1]
     : fileData;
 
-  const prompt = getAnalysisPrompt();
+  const prompt = getAnalysisPrompt(autoKamoku);
 
   const requestBody = {
     contents: [

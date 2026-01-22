@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Upload, Camera, FileText, Download, Trash2, AlertCircle, CheckCircle2, Settings, CreditCard, Landmark, Coins, Filter, Save, Plus, Briefcase, X, ArrowUpDown, History, FileClock, BookmarkPlus, CheckSquare, Square, Receipt, Bot, Loader2 } from 'lucide-react';
-import { Transaction, HistoryBatch } from '../types';
+import { Upload, Camera, FileText, Download, Trash2, AlertCircle, CheckCircle2, Settings, CreditCard, Landmark, Coins, Filter, Save, Plus, Briefcase, X, ArrowUpDown, History, FileClock, BookmarkPlus, CheckSquare, Square, Receipt, Bot, Loader2, ChevronDown } from 'lucide-react';
+import { Transaction, HistoryBatch, AccountMasterMap, AccountMasterConfig } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Toast, useToast } from './Toast';
 import { analyzeWithGemini, AnalysisError, errorMessages, GeminiModelId } from '../services/geminiService';
@@ -10,6 +10,9 @@ interface ScannerTabProps {
   geminiApiKey: string;
   geminiModel: GeminiModelId;
   customTaxCategories: string[];
+  accountMasters: AccountMasterMap;
+  onClientAdd?: (clientName: string) => void;
+  onClientDelete?: (clientName: string) => void;
 }
 
 // Common account items for autocomplete
@@ -17,7 +20,7 @@ const COMMON_KAMOKU = [
   '旅費交通費', '消耗品費', '接待交際費', '通信費', '水道光熱費',
   '地代家賃', '租税公課', '保険料', '広告宣伝費', '支払手数料',
   '会議費', '福利厚生費', '新聞図書費', '修繕費', '外注費',
-  '仮払金', '仮受金', '売掛金', '買掛金', '雑費'
+  '仮払金', '仮受金', '売掛金', '買掛金'
 ];
 
 // Default tax categories
@@ -34,6 +37,7 @@ const DEFAULT_TAX_CATEGORIES = [
 // Storage keys moved to parent (App.tsx) for centralized management
 
 type BookType = 'cash' | 'deposit' | 'credit';
+type CashAccountType = '現金' | '短期借入金';
 type FileState = {
   type: 'image' | 'pdf' | 'csv';
   previewUrl: string | null; // For images
@@ -49,7 +53,7 @@ const STORAGE_KEY_CLIENTS = 'kakeibo_ai_clients';
 const STORAGE_PREFIX_RULES = 'kakeibo_ai_rules_';
 const STORAGE_KEY_HISTORY = 'kakeibo_ai_history';
 
-export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiModel, customTaxCategories }) => {
+export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiModel, customTaxCategories, accountMasters, onClientAdd, onClientDelete }) => {
   const [clients, setClients] = useState<string[]>(['株式会社サンプル']);
   const [selectedClient, setSelectedClient] = useState<string>('株式会社サンプル');
   const [isAddingClient, setIsAddingClient] = useState(false);
@@ -76,6 +80,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<Set<string>>(new Set());
 
   const [bookType, setBookType] = useState<BookType>('cash');
+  const [cashAccountType, setCashAccountType] = useState<CashAccountType>('現金');
   const [baseAccount, setBaseAccount] = useState('現金');
   const [subAccount, setSubAccount] = useState('');
   const [filterText, setFilterText] = useState<string>('');
@@ -87,6 +92,23 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
   // Pre-selection for kamoku/subKamoku (applied to all transactions before CSV export)
   const [preSelectedKamoku, setPreSelectedKamoku] = useState<string>('');
   const [preSelectedSubKamoku, setPreSelectedSubKamoku] = useState<string>('');
+
+  // Searchable combobox state for kamoku selection
+  const [kamokuSearchText, setKamokuSearchText] = useState<string>('');
+  const [isKamokuDropdownOpen, setIsKamokuDropdownOpen] = useState(false);
+  const [kamokuHighlightIndex, setKamokuHighlightIndex] = useState<number>(-1);
+  const kamokuInputRef = useRef<HTMLInputElement>(null);
+  const kamokuDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Searchable combobox state for subKamoku selection
+  const [subKamokuSearchText, setSubKamokuSearchText] = useState<string>('');
+  const [isSubKamokuDropdownOpen, setIsSubKamokuDropdownOpen] = useState(false);
+  const [subKamokuHighlightIndex, setSubKamokuHighlightIndex] = useState<number>(-1);
+  const subKamokuInputRef = useRef<HTMLInputElement>(null);
+  const subKamokuDropdownRef = useRef<HTMLDivElement>(null);
+
+  // AI auto kamoku mode
+  const [aiAutoKamoku, setAiAutoKamoku] = useState<boolean>(false);
 
 
   // Toast notification
@@ -171,11 +193,11 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
     }
   }, [selectedClient]);
 
-  // Set base account based on book type
+  // Set base account based on book type and cash account type
   useEffect(() => {
     switch (bookType) {
       case 'cash':
-        setBaseAccount('現金');
+        setBaseAccount(cashAccountType);
         break;
       case 'deposit':
         setBaseAccount('普通預金');
@@ -184,14 +206,99 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
         setBaseAccount('未払金');
         break;
     }
-  }, [bookType]);
+  }, [bookType, cashAccountType]);
+
+  // Get current client's account master config
+  const currentClientMaster = useMemo(() => {
+    return accountMasters[selectedClient] || {
+      accounts: COMMON_KAMOKU.map(name => ({ name, subAccounts: [] })),
+      ledgerSubAccounts: { cash: [], shortTermLoan: [], deposit: [], credit: [] }
+    };
+  }, [accountMasters, selectedClient]);
+
+  // Get available ledger sub-accounts for current book type
+  const availableLedgerSubAccounts = useMemo(() => {
+    const ledgerSubAccounts = currentClientMaster.ledgerSubAccounts;
+    if (!ledgerSubAccounts) return [];
+    switch (bookType) {
+      case 'cash':
+        // cashAccountTypeに応じて分岐
+        return cashAccountType === '現金'
+          ? ledgerSubAccounts.cash || []
+          : ledgerSubAccounts.shortTermLoan || [];
+      case 'deposit': return ledgerSubAccounts.deposit || [];
+      case 'credit': return ledgerSubAccounts.credit || [];
+      default: return [];
+    }
+  }, [bookType, cashAccountType, currentClientMaster]);
+
+  // Get all available account names from master
+  const availableKamokuList = useMemo(() => {
+    return currentClientMaster.accounts.map(a => a.name);
+  }, [currentClientMaster]);
+
+  // Get available sub-accounts for selected kamoku
+  const availableSubKamokuList = useMemo(() => {
+    const selectedAccount = currentClientMaster.accounts.find(a => a.name === preSelectedKamoku);
+    return selectedAccount?.subAccounts || [];
+  }, [currentClientMaster, preSelectedKamoku]);
+
+  // Filter kamoku list based on search text
+  const filteredKamokuList = useMemo(() => {
+    if (!kamokuSearchText) return availableKamokuList;
+    const lowerSearch = kamokuSearchText.toLowerCase();
+    return availableKamokuList.filter(k => k.toLowerCase().includes(lowerSearch));
+  }, [availableKamokuList, kamokuSearchText]);
+
+  // Filter sub-kamoku list based on search text
+  const filteredSubKamokuList = useMemo(() => {
+    if (!subKamokuSearchText) return availableSubKamokuList;
+    const lowerSearch = subKamokuSearchText.toLowerCase();
+    return availableSubKamokuList.filter(s => s.toLowerCase().includes(lowerSearch));
+  }, [availableSubKamokuList, subKamokuSearchText]);
+
+  // Auto-fill ledger sub-account when company or book type changes
+  useEffect(() => {
+    // availableLedgerSubAccountsから自動選択
+    if (availableLedgerSubAccounts.length === 1) {
+      // 1件のみの場合は自動選択
+      setSubAccount(availableLedgerSubAccounts[0]);
+    } else if (availableLedgerSubAccounts.length > 1) {
+      // 複数ある場合は最初の項目をデフォルト選択（または空欄でユーザーに選択させる）
+      setSubAccount(availableLedgerSubAccounts[0]);
+    } else {
+      // 0件の場合は空欄
+      setSubAccount('');
+    }
+  }, [bookType, currentClientMaster, selectedClient, availableLedgerSubAccounts]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (kamokuDropdownRef.current && !kamokuDropdownRef.current.contains(event.target as Node) &&
+          kamokuInputRef.current && !kamokuInputRef.current.contains(event.target as Node)) {
+        setIsKamokuDropdownOpen(false);
+      }
+      if (subKamokuDropdownRef.current && !subKamokuDropdownRef.current.contains(event.target as Node) &&
+          subKamokuInputRef.current && !subKamokuInputRef.current.contains(event.target as Node)) {
+        setIsSubKamokuDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleAddClient = () => {
     if (!newClientName.trim()) return;
-    const updatedClients = [...clients, newClientName.trim()];
+    const trimmedName = newClientName.trim();
+    const updatedClients = [...clients, trimmedName];
     setClients(updatedClients);
-    setSelectedClient(newClientName.trim());
+    setSelectedClient(trimmedName);
     localStorage.setItem(STORAGE_KEY_CLIENTS, JSON.stringify(updatedClients));
+    // 親コンポーネントに通知して勘定科目マスタを初期化
+    if (onClientAdd) {
+      onClientAdd(trimmedName);
+    }
     setNewClientName('');
     setIsAddingClient(false);
   };
@@ -208,6 +315,8 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
       setClients(updatedClients);
       localStorage.setItem(STORAGE_KEY_CLIENTS, JSON.stringify(updatedClients));
       if (selectedClient === clientName) setSelectedClient(updatedClients[0]);
+      // 親コンポーネントに通知して勘定科目マスタも削除
+      onClientDelete?.(clientName);
     });
   };
 
@@ -249,7 +358,8 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
         fileState.data,
         fileState.mimeType,
         geminiApiKey,
-        geminiModel
+        geminiModel,
+        aiAutoKamoku
       );
 
       setTransactions(results.map(t => {
@@ -261,11 +371,28 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
         const effectiveTaxCategory = isDepositOrCredit ? '対象外' : (t.taxCategory || '');
         const effectiveInvoice = isDepositOrCredit ? '非適格' : (t.invoiceNumber || '');
 
+        // 勘定科目の優先順位: 1. 学習ルール、2. AIおまかせモードの推測、3. デフォルト
+        let effectiveKamoku: string;
+        let effectiveSubKamoku: string;
+        if (rule?.kamoku) {
+          // 学習ルールが最優先
+          effectiveKamoku = rule.kamoku;
+          effectiveSubKamoku = rule.subKamoku || '';
+        } else if (aiAutoKamoku && t.kamoku) {
+          // AIおまかせモードで推測された科目を使用
+          effectiveKamoku = t.kamoku;
+          effectiveSubKamoku = t.subKamoku || '';
+        } else {
+          // デフォルト（仮払金/仮受金）
+          effectiveKamoku = t.type === 'income' ? '仮受金' : '仮払金';
+          effectiveSubKamoku = '';
+        }
+
         return {
           ...t,
           amount: signedAmount,
-          kamoku: rule?.kamoku || (t.type === 'income' ? '仮受金' : '仮払金'),
-          subKamoku: rule?.subKamoku || '',
+          kamoku: effectiveKamoku,
+          subKamoku: effectiveSubKamoku,
           invoiceNumber: effectiveInvoice,
           taxCategory: effectiveTaxCategory
         };
@@ -302,6 +429,91 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
 
   const toggleTransactionSign = (id: string) => {
     setTransactions(prev => prev.map(t => t.id === id ? { ...t, amount: -t.amount, kamoku: t.kamoku === '仮払金' ? '仮受金' : t.kamoku === '仮受金' ? '仮払金' : t.kamoku } : t));
+  };
+
+  // Handlers for searchable kamoku combobox
+  const handleKamokuSelect = (kamoku: string) => {
+    setPreSelectedKamoku(kamoku);
+    setKamokuSearchText('');
+    setIsKamokuDropdownOpen(false);
+    setKamokuHighlightIndex(-1);
+    // Clear sub-kamoku when kamoku changes
+    setPreSelectedSubKamoku('');
+    setSubKamokuSearchText('');
+  };
+
+  const handleKamokuKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isKamokuDropdownOpen) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter') {
+        setIsKamokuDropdownOpen(true);
+        e.preventDefault();
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setKamokuHighlightIndex(prev => Math.min(prev + 1, filteredKamokuList.length - 1));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setKamokuHighlightIndex(prev => Math.max(prev - 1, 0));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (kamokuHighlightIndex >= 0 && kamokuHighlightIndex < filteredKamokuList.length) {
+          handleKamokuSelect(filteredKamokuList[kamokuHighlightIndex]);
+        } else if (filteredKamokuList.length > 0) {
+          handleKamokuSelect(filteredKamokuList[0]);
+        }
+        break;
+      case 'Escape':
+        setIsKamokuDropdownOpen(false);
+        setKamokuHighlightIndex(-1);
+        break;
+    }
+  };
+
+  // Handlers for searchable sub-kamoku combobox
+  const handleSubKamokuSelect = (subKamoku: string) => {
+    setPreSelectedSubKamoku(subKamoku);
+    setSubKamokuSearchText('');
+    setIsSubKamokuDropdownOpen(false);
+    setSubKamokuHighlightIndex(-1);
+  };
+
+  const handleSubKamokuKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isSubKamokuDropdownOpen) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter') {
+        setIsSubKamokuDropdownOpen(true);
+        e.preventDefault();
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSubKamokuHighlightIndex(prev => Math.min(prev + 1, filteredSubKamokuList.length - 1));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSubKamokuHighlightIndex(prev => Math.max(prev - 1, 0));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (subKamokuHighlightIndex >= 0 && subKamokuHighlightIndex < filteredSubKamokuList.length) {
+          handleSubKamokuSelect(filteredSubKamokuList[subKamokuHighlightIndex]);
+        } else if (filteredSubKamokuList.length > 0) {
+          handleSubKamokuSelect(filteredSubKamokuList[0]);
+        }
+        break;
+      case 'Escape':
+        setIsSubKamokuDropdownOpen(false);
+        setSubKamokuHighlightIndex(-1);
+        break;
+    }
   };
 
   // Delete transaction with confirmation and undo capability
@@ -512,11 +724,58 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
                   <span className="text-xs font-medium mt-1">クレカ</span>
                 </button>
               </div>
+              {/* Cash Account Sub-options */}
+              {bookType === 'cash' && (
+                <div className="flex gap-2 mt-2 pl-1">
+                  <button
+                    onClick={() => setCashAccountType('現金')}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                      cashAccountType === '現金'
+                        ? 'bg-orange-600 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-orange-100 hover:text-orange-600'
+                    }`}
+                  >
+                    現金
+                  </button>
+                  <button
+                    onClick={() => setCashAccountType('短期借入金')}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                      cashAccountType === '短期借入金'
+                        ? 'bg-orange-600 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-orange-100 hover:text-orange-600'
+                    }`}
+                  >
+                    短期借入金
+                  </button>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-600">補助科目設定</label>
-              <input value={subAccount} onChange={e => setSubAccount(e.target.value)} placeholder="例: 三菱UFJ銀行" className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" />
-              <div className="text-xs text-slate-500">現在の元帳科目: <span className="font-medium text-slate-700">{baseAccount}</span></div>
+              {availableLedgerSubAccounts.length > 0 ? (
+                <select
+                  value={subAccount}
+                  onChange={e => setSubAccount(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                >
+                  {availableLedgerSubAccounts.map(sub => (
+                    <option key={sub} value={sub}>{sub}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  value={subAccount}
+                  onChange={e => setSubAccount(e.target.value)}
+                  placeholder="例: 三菱UFJ銀行（マスタ未登録）"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                />
+              )}
+              <div className="text-xs text-slate-500">
+                現在の元帳科目: <span className="font-medium text-slate-700">{baseAccount}</span>
+                {availableLedgerSubAccounts.length === 0 && (
+                  <span className="ml-2 text-orange-600">（設定タブで補助科目を登録できます）</span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -530,24 +789,145 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
               ここで選択した科目が、CSV出力時にすべての取引に適用されます（空欄の場合は個別設定が使われます）
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Kamoku Searchable Combobox */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-slate-500">相手勘定科目</label>
-                <input
-                  list="kamoku-suggestions"
-                  value={preSelectedKamoku}
-                  onChange={e => setPreSelectedKamoku(e.target.value)}
-                  placeholder="例: 消耗品費（空欄で個別設定優先）"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm"
-                />
+                <div className="relative">
+                  <div className="relative">
+                    <input
+                      ref={kamokuInputRef}
+                      type="text"
+                      value={isKamokuDropdownOpen ? kamokuSearchText : preSelectedKamoku}
+                      onChange={e => {
+                        setKamokuSearchText(e.target.value);
+                        setIsKamokuDropdownOpen(true);
+                        setKamokuHighlightIndex(-1);
+                      }}
+                      onFocus={() => setIsKamokuDropdownOpen(true)}
+                      onKeyDown={handleKamokuKeyDown}
+                      placeholder="入力して検索 または 選択..."
+                      className="w-full px-3 py-2 pr-8 rounded-lg border border-slate-300 bg-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setIsKamokuDropdownOpen(!isKamokuDropdownOpen)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <ChevronDown className={`w-4 h-4 transition-transform ${isKamokuDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                  </div>
+                  {isKamokuDropdownOpen && (
+                    <div
+                      ref={kamokuDropdownRef}
+                      className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                    >
+                      {filteredKamokuList.length > 0 ? (
+                        filteredKamokuList.map((kamoku, index) => (
+                          <div
+                            key={kamoku}
+                            onClick={() => handleKamokuSelect(kamoku)}
+                            className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
+                              index === kamokuHighlightIndex
+                                ? 'bg-orange-100 text-orange-700'
+                                : 'hover:bg-slate-50'
+                            }`}
+                          >
+                            {kamoku}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-3 py-2 text-sm text-slate-400">該当する勘定科目がありません</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {preSelectedKamoku && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                      選択中: {preSelectedKamoku}
+                    </span>
+                    <button
+                      onClick={() => { setPreSelectedKamoku(''); setPreSelectedSubKamoku(''); }}
+                      className="text-xs text-slate-400 hover:text-red-500"
+                    >
+                      クリア
+                    </button>
+                  </div>
+                )}
               </div>
+
+              {/* SubKamoku Searchable Combobox */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-slate-500">相手補助科目</label>
-                <input
-                  value={preSelectedSubKamoku}
-                  onChange={e => setPreSelectedSubKamoku(e.target.value)}
-                  placeholder="例: 事務用品（空欄で個別設定優先）"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm"
-                />
+                <div className="relative">
+                  <div className="relative">
+                    <input
+                      ref={subKamokuInputRef}
+                      type="text"
+                      value={isSubKamokuDropdownOpen ? subKamokuSearchText : preSelectedSubKamoku}
+                      onChange={e => {
+                        setSubKamokuSearchText(e.target.value);
+                        setIsSubKamokuDropdownOpen(true);
+                        setSubKamokuHighlightIndex(-1);
+                      }}
+                      onFocus={() => availableSubKamokuList.length > 0 && setIsSubKamokuDropdownOpen(true)}
+                      onKeyDown={handleSubKamokuKeyDown}
+                      placeholder={availableSubKamokuList.length > 0 ? "入力して検索 または 選択..." : "自由入力（マスタ未登録）"}
+                      className="w-full px-3 py-2 pr-8 rounded-lg border border-slate-300 bg-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm"
+                    />
+                    {availableSubKamokuList.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setIsSubKamokuDropdownOpen(!isSubKamokuDropdownOpen)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        <ChevronDown className={`w-4 h-4 transition-transform ${isSubKamokuDropdownOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                    )}
+                  </div>
+                  {isSubKamokuDropdownOpen && availableSubKamokuList.length > 0 && (
+                    <div
+                      ref={subKamokuDropdownRef}
+                      className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                    >
+                      {filteredSubKamokuList.length > 0 ? (
+                        filteredSubKamokuList.map((sub, index) => (
+                          <div
+                            key={sub}
+                            onClick={() => handleSubKamokuSelect(sub)}
+                            className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
+                              index === subKamokuHighlightIndex
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'hover:bg-slate-50'
+                            }`}
+                          >
+                            {sub}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-3 py-2 text-sm text-slate-400">該当する補助科目がありません</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {preSelectedSubKamoku && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                      選択中: {preSelectedSubKamoku}
+                    </span>
+                    <button
+                      onClick={() => setPreSelectedSubKamoku('')}
+                      className="text-xs text-slate-400 hover:text-red-500"
+                    >
+                      クリア
+                    </button>
+                  </div>
+                )}
+                {availableSubKamokuList.length === 0 && preSelectedKamoku && (
+                  <p className="text-xs text-slate-400 mt-1">
+                    「{preSelectedKamoku}」に紐づく補助科目がマスタに登録されていません
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -595,24 +975,44 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
               </div>
               <div className="flex-1 flex flex-col justify-center gap-3">
                 {geminiApiKey ? (
-                  <button
-                    onClick={handleGeminiAnalysis}
-                    disabled={isAnalyzing}
-                    aria-label="AI自動解析を開始"
-                    className="w-full py-3 rounded-lg font-medium text-white flex items-center justify-center gap-3 transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 bg-orange-600 hover:bg-orange-700 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {isAnalyzing ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        解析中...
-                      </>
-                    ) : (
-                      <>
-                        <Bot className="w-5 h-5" />
-                        AI自動解析
-                      </>
-                    )}
-                  </button>
+                  <>
+                    <button
+                      onClick={handleGeminiAnalysis}
+                      disabled={isAnalyzing}
+                      aria-label="AI自動解析を開始"
+                      className="w-full py-3 rounded-lg font-medium text-white flex items-center justify-center gap-3 transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 bg-orange-600 hover:bg-orange-700 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {isAnalyzing ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          解析中...
+                        </>
+                      ) : (
+                        <>
+                          <Bot className="w-5 h-5" />
+                          AI自動解析
+                        </>
+                      )}
+                    </button>
+                    {/* AI Auto Kamoku Toggle */}
+                    <label className="flex items-center gap-3 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-all">
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          checked={aiAutoKamoku}
+                          onChange={e => setAiAutoKamoku(e.target.checked)}
+                          className="sr-only"
+                        />
+                        <div className={`w-10 h-5 rounded-full transition-colors ${aiAutoKamoku ? 'bg-orange-600' : 'bg-slate-300'}`}>
+                          <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${aiAutoKamoku ? 'translate-x-5' : ''}`} />
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-slate-700">AIおまかせモード</span>
+                        <p className="text-xs text-slate-500">ONにするとAIが勘定科目を推測します</p>
+                      </div>
+                    </label>
+                  </>
                 ) : (
                   <div className="text-center space-y-3">
                     <button disabled className="w-full py-3 rounded-lg font-medium text-white bg-slate-300 cursor-not-allowed flex items-center justify-center gap-3">
@@ -683,9 +1083,9 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
 
               {/* Kamoku Autocomplete Datalist */}
               <datalist id="kamoku-suggestions">
-                {COMMON_KAMOKU.map(k => <option key={k} value={k} />)}
+                {availableKamokuList.map(k => <option key={k} value={k} />)}
                 {(Object.values(learningRules) as RuleValue[]).map((rule, i) =>
-                  rule.kamoku && !COMMON_KAMOKU.includes(rule.kamoku) ?
+                  rule.kamoku && !availableKamokuList.includes(rule.kamoku) ?
                     <option key={`learned-${i}`} value={rule.kamoku} /> : null
                 )}
               </datalist>

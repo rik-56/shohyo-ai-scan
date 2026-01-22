@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Receipt, Settings } from 'lucide-react';
 import { ScannerTab } from './components/ScannerTab';
 import { MasterTab } from './components/MasterTab';
-import { AppTab } from './types';
+import { AppTab, AccountMasterConfig, AccountMasterMap, AccountWithSubAccounts } from './types';
 import { GeminiModelId } from './services/geminiService';
 
 // Storage keys for centralized settings
@@ -12,8 +12,49 @@ const STORAGE_KEY_CUSTOM_TAX_CATEGORIES = 'kakeibo_ai_custom_tax_categories';
 const STORAGE_KEY_CLIENTS = 'kakeibo_ai_clients';
 const STORAGE_PREFIX_ACCOUNT_MASTER = 'kakeibo_ai_accounts_';
 
-// Type for account master per company
-type AccountMasterMap = Record<string, string[]>; // clientName -> accounts[]
+// Common default accounts (shared)
+const DEFAULT_ACCOUNTS = [
+  '旅費交通費', '消耗品費', '接待交際費', '通信費', '水道光熱費',
+  '地代家賃', '租税公課', '保険料', '広告宣伝費', '支払手数料',
+  '会議費', '福利厚生費', '新聞図書費', '修繕費', '外注費',
+  '仮払金', '仮受金', '売掛金', '買掛金'
+];
+
+// 旧形式の型定義（マイグレーション用）
+type OldAccountMasterConfig = {
+  defaultAccounts: string[];
+  customAccounts: string[];
+};
+
+// 新形式のデフォルト勘定科目マスタを生成
+const createDefaultAccountMaster = (): AccountMasterConfig => ({
+  accounts: DEFAULT_ACCOUNTS.map(name => ({ name, subAccounts: [] })),
+  ledgerSubAccounts: { cash: [], shortTermLoan: [], deposit: [], credit: [] }
+});
+
+// 旧形式から新形式へのマイグレーション
+const migrateAccountMaster = (old: OldAccountMasterConfig): AccountMasterConfig => {
+  const allAccounts = [...old.defaultAccounts, ...old.customAccounts];
+  return {
+    accounts: allAccounts.map(name => ({ name, subAccounts: [] })),
+    ledgerSubAccounts: { cash: [], shortTermLoan: [], deposit: [], credit: [] }
+  };
+};
+
+// 元帳補助科目のマイグレーション（string → string[]）
+const migrateLedgerSubAccounts = (ledgerSubAccounts: any): { cash: string[]; shortTermLoan: string[]; deposit: string[]; credit: string[] } => {
+  const migrateValue = (value: any): string[] => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string' && value.trim()) return [value];
+    return [];
+  };
+  return {
+    cash: migrateValue(ledgerSubAccounts?.cash),
+    shortTermLoan: migrateValue(ledgerSubAccounts?.shortTermLoan),
+    deposit: migrateValue(ledgerSubAccounts?.deposit),
+    credit: migrateValue(ledgerSubAccounts?.credit)
+  };
+};
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AppTab>(AppTab.SCANNER);
@@ -61,12 +102,47 @@ const App: React.FC = () => {
             if (savedAccounts) {
               try {
                 const accounts = JSON.parse(savedAccounts);
+                // マイグレーション判定
                 if (Array.isArray(accounts)) {
-                  masters[client] = accounts;
+                  // 最古形式: カスタム科目のみの配列 → 新形式に変換
+                  const migrated = migrateAccountMaster({
+                    defaultAccounts: [...DEFAULT_ACCOUNTS],
+                    customAccounts: accounts
+                  });
+                  masters[client] = migrated;
+                  localStorage.setItem(`${STORAGE_PREFIX_ACCOUNT_MASTER}${client}`, JSON.stringify(migrated));
+                } else if (accounts && typeof accounts === 'object' && 'defaultAccounts' in accounts && !('accounts' in accounts)) {
+                  // 旧形式: { defaultAccounts, customAccounts } → 新形式に変換
+                  const migrated = migrateAccountMaster(accounts as OldAccountMasterConfig);
+                  masters[client] = migrated;
+                  localStorage.setItem(`${STORAGE_PREFIX_ACCOUNT_MASTER}${client}`, JSON.stringify(migrated));
+                } else if (accounts && typeof accounts === 'object' && 'accounts' in accounts) {
+                  // 新形式: ledgerSubAccountsのマイグレーションを適用
+                  const config = accounts as AccountMasterConfig;
+                  const needsMigration = config.ledgerSubAccounts &&
+                    (typeof config.ledgerSubAccounts.cash === 'string' ||
+                     typeof config.ledgerSubAccounts.deposit === 'string' ||
+                     typeof config.ledgerSubAccounts.credit === 'string');
+
+                  if (needsMigration) {
+                    const migrated: AccountMasterConfig = {
+                      ...config,
+                      ledgerSubAccounts: migrateLedgerSubAccounts(config.ledgerSubAccounts)
+                    };
+                    masters[client] = migrated;
+                    localStorage.setItem(`${STORAGE_PREFIX_ACCOUNT_MASTER}${client}`, JSON.stringify(migrated));
+                  } else {
+                    masters[client] = config;
+                  }
                 }
               } catch (e) {
                 console.error(`Failed to parse accounts for ${client}:`, e);
               }
+            } else {
+              // データがない場合はデフォルトで初期化
+              const defaultMaster = createDefaultAccountMaster();
+              masters[client] = defaultMaster;
+              localStorage.setItem(`${STORAGE_PREFIX_ACCOUNT_MASTER}${client}`, JSON.stringify(defaultMaster));
             }
           });
           setAccountMasters(masters);
@@ -100,9 +176,33 @@ const App: React.FC = () => {
   };
 
   // Handler for account master changes (per company)
-  const handleAccountMasterChange = (clientName: string, accounts: string[]) => {
-    setAccountMasters(prev => ({ ...prev, [clientName]: accounts }));
-    localStorage.setItem(`${STORAGE_PREFIX_ACCOUNT_MASTER}${clientName}`, JSON.stringify(accounts));
+  const handleAccountMasterChange = (clientName: string, config: AccountMasterConfig) => {
+    setAccountMasters(prev => ({ ...prev, [clientName]: config }));
+    localStorage.setItem(`${STORAGE_PREFIX_ACCOUNT_MASTER}${clientName}`, JSON.stringify(config));
+  };
+
+  // Handler for new client added from ScannerTab
+  const handleClientAdd = (clientName: string) => {
+    // clients stateも更新
+    setClients(prev => [...prev, clientName]);
+
+    // accountMastersを新形式で初期化
+    const newConfig = createDefaultAccountMaster();
+    setAccountMasters(prev => ({ ...prev, [clientName]: newConfig }));
+    localStorage.setItem(`${STORAGE_PREFIX_ACCOUNT_MASTER}${clientName}`, JSON.stringify(newConfig));
+  };
+
+  // Handler for client deleted from ScannerTab
+  const handleClientDelete = (clientName: string) => {
+    // clients stateから削除
+    setClients(prev => prev.filter(c => c !== clientName));
+    // accountMastersから削除
+    setAccountMasters(prev => {
+      const { [clientName]: _, ...rest } = prev;
+      return rest;
+    });
+    // localStorageからも削除
+    localStorage.removeItem(`${STORAGE_PREFIX_ACCOUNT_MASTER}${clientName}`);
   };
 
   return (
@@ -159,6 +259,9 @@ const App: React.FC = () => {
             geminiApiKey={geminiApiKey}
             geminiModel={geminiModel}
             customTaxCategories={customTaxCategories}
+            accountMasters={accountMasters}
+            onClientAdd={handleClientAdd}
+            onClientDelete={handleClientDelete}
           />
         </div>
         <div className={activeTab === AppTab.MASTER ? '' : 'hidden'}>
@@ -176,9 +279,6 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      <footer className="py-6 text-center text-slate-400 text-xs">
-        <p>ChatGPT / Claude Web / Gemini API対応</p>
-      </footer>
     </div>
   );
 };
