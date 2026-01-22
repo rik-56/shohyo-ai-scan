@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Receipt, Settings } from 'lucide-react';
+import { Receipt, Settings, Lightbulb } from 'lucide-react';
 import { ScannerTab } from './components/ScannerTab';
 import { MasterTab } from './components/MasterTab';
 import { AppTab, AccountMasterConfig, AccountMasterMap, AccountWithSubAccounts } from './types';
@@ -211,6 +211,15 @@ const App: React.FC = () => {
               <h1 className="text-lg font-semibold text-slate-800">仕訳アシスタント</h1>
               <p className="text-xs text-slate-500">AI証憑解析・仕訳作成支援</p>
             </div>
+            <button
+              onClick={() => window.open('/docs/使い方ガイド.html', '_blank')}
+              className="flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-600 hover:bg-amber-200 rounded-lg transition-colors"
+              aria-label="使い方ガイドを開く"
+              title="使い方ガイド"
+            >
+              <Lightbulb className="w-4 h-4" />
+              <span className="text-xs font-medium hidden sm:inline">Tips</span>
+            </button>
           </div>
 
           {/* Tab Navigation */}

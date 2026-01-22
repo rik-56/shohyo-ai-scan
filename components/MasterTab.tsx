@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Settings, Key, Eye, EyeOff, CheckCircle2, Plus, X, Tag, Briefcase, BookOpen, Cpu, ChevronDown, ChevronRight, Coins, Landmark, CreditCard } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Settings, Key, Eye, EyeOff, CheckCircle2, Plus, X, Tag, Briefcase, BookOpen, Cpu, ChevronDown, ChevronRight, Coins, Landmark, CreditCard, Download, Upload } from 'lucide-react';
 import { GEMINI_MODELS, GeminiModelId } from '../services/geminiService';
 import { AccountMasterConfig, AccountMasterMap, AccountWithSubAccounts } from '../types';
 import { DEFAULT_ACCOUNTS, DEFAULT_TAX_CATEGORIES } from '../constants';
@@ -42,6 +42,117 @@ export const MasterTab: React.FC<MasterTabProps> = ({
   // 元帳補助科目の追加用state
   const [isAddingLedgerSub, setIsAddingLedgerSub] = useState<'cash' | 'shortTermLoan' | 'deposit' | 'credit' | null>(null);
   const [newLedgerSubName, setNewLedgerSubName] = useState('');
+
+  // インポート用ファイル入力ref
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // エクスポート機能
+  const handleExport = () => {
+    // LocalStorageからデータを収集
+    const exportData = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      data: {
+        geminiApiKey: geminiApiKey,
+        geminiModel: geminiModel,
+        customTaxCategories: customTaxCategories,
+        clients: clients,
+        accountMasters: {} as Record<string, AccountMasterConfig>
+      }
+    };
+
+    // 各クライアントの勘定科目マスタを収集
+    clients.forEach(client => {
+      if (accountMasters[client]) {
+        exportData.data.accountMasters[client] = accountMasters[client];
+      }
+    });
+
+    // JSONファイルとしてダウンロード
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const date = new Date().toISOString().split('T')[0];
+    a.href = url;
+    a.download = `仕訳アシスタント_バックアップ_${date}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // インポート機能
+  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const importData = JSON.parse(content);
+
+        // バージョンチェック
+        if (!importData.version || !importData.data) {
+          alert('無効なバックアップファイルです。');
+          return;
+        }
+
+        // マージ確認
+        if (!confirm('インポートファイルのデータを追加・更新しますか？\n（既存の会社データは保持されます）')) {
+          return;
+        }
+
+        // データを復元
+        const data = importData.data;
+
+        // APIキー
+        if (data.geminiApiKey !== undefined) {
+          localStorage.setItem('kakeibo_ai_gemini_api_key', data.geminiApiKey);
+          onApiKeyChange(data.geminiApiKey);
+        }
+
+        // AIモデル
+        if (data.geminiModel) {
+          localStorage.setItem('kakeibo_ai_gemini_model', data.geminiModel);
+          onModelChange(data.geminiModel);
+        }
+
+        // カスタム税区分（マージ）
+        if (data.customTaxCategories) {
+          const existingTaxCats = JSON.parse(localStorage.getItem('kakeibo_ai_custom_tax_categories') || '[]') as string[];
+          const mergedTaxCats = [...new Set([...existingTaxCats, ...data.customTaxCategories])];
+          localStorage.setItem('kakeibo_ai_custom_tax_categories', JSON.stringify(mergedTaxCats));
+          onCustomTaxCategoriesChange(mergedTaxCats);
+        }
+
+        // クライアント一覧（マージ）
+        if (data.clients) {
+          const existingClients = JSON.parse(localStorage.getItem('kakeibo_ai_clients') || '[]') as string[];
+          const mergedClients = [...new Set([...existingClients, ...data.clients])];
+          localStorage.setItem('kakeibo_ai_clients', JSON.stringify(mergedClients));
+        }
+
+        // 勘定科目マスタ（会社別）
+        if (data.accountMasters) {
+          Object.entries(data.accountMasters).forEach(([clientName, config]) => {
+            localStorage.setItem(`kakeibo_ai_accounts_${clientName}`, JSON.stringify(config));
+            onAccountMasterChange(clientName, config as AccountMasterConfig);
+          });
+        }
+
+        alert('設定を復元しました。ページを再読み込みします。');
+        window.location.reload();
+      } catch (error) {
+        console.error('Import error:', error);
+        alert('ファイルの読み込みに失敗しました。');
+      }
+    };
+    reader.readAsText(file);
+
+    // ファイル入力をリセット（同じファイルを再選択可能にする）
+    event.target.value = '';
+  };
 
   // clients変更時にselectedClientが無効になった場合は最初のクライアントを選択
   useEffect(() => {
@@ -785,6 +896,57 @@ export const MasterTab: React.FC<MasterTabProps> = ({
               </div>
             </>
           )}
+        </div>
+      </div>
+
+      {/* Data Backup Section */}
+      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <h2 className="text-base font-semibold text-slate-700 mb-5 flex items-center gap-2">
+          <Download className="w-5 h-5 text-orange-600" />
+          データバックアップ
+        </h2>
+
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            設定データをファイルに保存・復元できます。ブラウザのキャッシュクリア前にエクスポートしておくことをお勧めします。
+          </p>
+
+          <div className="flex gap-3">
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium text-sm transition-all"
+            >
+              <Download className="w-4 h-4" />
+              エクスポート
+            </button>
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-medium text-sm transition-all border border-slate-300"
+            >
+              <Upload className="w-4 h-4" />
+              インポート
+            </button>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleImport}
+              className="hidden"
+            />
+          </div>
+
+          <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3">
+            <p className="font-medium mb-1">エクスポートされるデータ:</p>
+            <ul className="list-disc list-inside space-y-0.5">
+              <li>Gemini APIキー</li>
+              <li>AIモデル設定</li>
+              <li>カスタム税区分</li>
+              <li>クライアント一覧</li>
+              <li>勘定科目マスタ（会社別）</li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
