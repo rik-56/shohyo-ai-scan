@@ -68,6 +68,17 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
   const [filterText, setFilterText] = useState<string>('');
   const [learningRules, setLearningRules] = useState<RulesMap>({});
 
+  // Advanced filter state
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [filters, setFilters] = useState({
+    dateFrom: '',
+    dateTo: '',
+    kamoku: '',
+    subKamoku: '',
+    invoiceNumber: '',
+    taxCategory: ''
+  });
+
   // Analysis State
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
@@ -224,6 +235,12 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
     const selectedAccount = currentClientMaster.accounts.find(a => a.name === preSelectedKamoku);
     return selectedAccount?.subAccounts || [];
   }, [currentClientMaster, preSelectedKamoku]);
+
+  // Helper function to get sub-accounts for a specific kamoku (used in transaction rows)
+  const getSubAccountsForKamoku = useCallback((kamokuName: string) => {
+    const account = currentClientMaster.accounts.find(a => a.name === kamokuName);
+    return account?.subAccounts || [];
+  }, [currentClientMaster]);
 
   // Filter kamoku list based on search text
   const filteredKamokuList = useMemo(() => {
@@ -410,7 +427,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
   };
 
   const toggleTransactionSign = (id: string) => {
-    setTransactions(prev => prev.map(t => t.id === id ? { ...t, amount: -t.amount, kamoku: t.kamoku === '仮払金' ? '仮受金' : t.kamoku === '仮受金' ? '仮払金' : t.kamoku } : t));
+    setTransactions(prev => prev.map(t => t.id === id ? { ...t, amount: -t.amount, toggled: !t.toggled, kamoku: t.kamoku === '仮払金' ? '仮受金' : t.kamoku === '仮受金' ? '仮払金' : t.kamoku } : t));
   };
 
   // Handlers for searchable kamoku combobox
@@ -604,7 +621,62 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
     return Object.values(map).sort((a, b) => a.month.localeCompare(b.month));
   }, [transactions]);
 
-  const filteredTransactions = useMemo(() => filterText ? transactions.filter(t => t.description.toLowerCase().includes(filterText.toLowerCase())) : transactions, [transactions, filterText]);
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(t => {
+      // Text filter for description
+      if (filterText && !t.description.toLowerCase().includes(filterText.toLowerCase())) return false;
+      // Date range filter
+      if (filters.dateFrom && t.date < filters.dateFrom) return false;
+      if (filters.dateTo && t.date > filters.dateTo) return false;
+      // Kamoku filter
+      if (filters.kamoku && t.kamoku !== filters.kamoku) return false;
+      // SubKamoku filter
+      if (filters.subKamoku && t.subKamoku !== filters.subKamoku) return false;
+      // Invoice filter
+      if (filters.invoiceNumber && t.invoiceNumber !== filters.invoiceNumber) return false;
+      // Tax category filter
+      if (filters.taxCategory && t.taxCategory !== filters.taxCategory) return false;
+      return true;
+    });
+  }, [transactions, filterText, filters]);
+
+  // Get unique values for filter dropdowns
+  const filterOptions = useMemo(() => {
+    const kamokuSet = new Set<string>();
+    const subKamokuSet = new Set<string>();
+    const invoiceSet = new Set<string>();
+    const taxCategorySet = new Set<string>();
+    transactions.forEach(t => {
+      if (t.kamoku) kamokuSet.add(t.kamoku);
+      if (t.subKamoku) subKamokuSet.add(t.subKamoku);
+      if (t.invoiceNumber) invoiceSet.add(t.invoiceNumber);
+      if (t.taxCategory) taxCategorySet.add(t.taxCategory);
+    });
+    return {
+      kamoku: Array.from(kamokuSet).sort(),
+      subKamoku: Array.from(subKamokuSet).sort(),
+      invoiceNumber: Array.from(invoiceSet).sort(),
+      taxCategory: Array.from(taxCategorySet).sort()
+    };
+  }, [transactions]);
+
+  // Check if any filter is active
+  const hasActiveFilters = useMemo(() => {
+    return filterText || filters.dateFrom || filters.dateTo || filters.kamoku || filters.subKamoku || filters.invoiceNumber || filters.taxCategory;
+  }, [filterText, filters]);
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setFilterText('');
+    setFilters({
+      dateFrom: '',
+      dateTo: '',
+      kamoku: '',
+      subKamoku: '',
+      invoiceNumber: '',
+      taxCategory: ''
+    });
+  };
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
@@ -1039,18 +1111,131 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <h3 className="font-semibold text-slate-700 flex items-center gap-2">
                     <CheckCircle2 className="text-orange-600 w-5 h-5" />仕訳プレビュー
+                    {hasActiveFilters && (
+                      <span className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
+                        {filteredTransactions.length}/{transactions.length}件
+                      </span>
+                    )}
                   </h3>
-                  <div className="relative w-full sm:w-auto sm:max-w-xs">
-                    <Filter className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      value={filterText}
-                      onChange={e => setFilterText(e.target.value)}
-                      placeholder="摘要でフィルター"
-                      className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 bg-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm"
-                      aria-label="摘要でフィルター"
-                    />
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:flex-none sm:w-48">
+                      <Filter className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        value={filterText}
+                        onChange={e => setFilterText(e.target.value)}
+                        placeholder="摘要でフィルター"
+                        className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 bg-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm"
+                        aria-label="摘要でフィルター"
+                      />
+                    </div>
+                    <button
+                      onClick={() => setShowFilterPanel(!showFilterPanel)}
+                      className={`px-3 py-2 rounded-lg border text-sm font-medium flex items-center gap-1 transition-all ${
+                        showFilterPanel || hasActiveFilters
+                          ? 'bg-orange-50 border-orange-300 text-orange-600'
+                          : 'bg-white border-slate-300 text-slate-600 hover:border-orange-300'
+                      }`}
+                      aria-expanded={showFilterPanel}
+                      aria-label="詳細フィルター"
+                    >
+                      <Filter className="w-4 h-4" />
+                      詳細
+                    </button>
                   </div>
                 </div>
+                {/* Filter Panel */}
+                {showFilterPanel && (
+                  <div className="mt-4 pt-4 border-t border-slate-200 space-y-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                      {/* Date From */}
+                      <div className="space-y-1">
+                        <label className="text-xs text-slate-500 font-medium">取引日（開始）</label>
+                        <input
+                          type="date"
+                          value={filters.dateFrom}
+                          onChange={e => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+                          className="w-full px-2 py-1.5 rounded border border-slate-300 text-sm outline-none focus:border-orange-500"
+                        />
+                      </div>
+                      {/* Date To */}
+                      <div className="space-y-1">
+                        <label className="text-xs text-slate-500 font-medium">取引日（終了）</label>
+                        <input
+                          type="date"
+                          value={filters.dateTo}
+                          onChange={e => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+                          className="w-full px-2 py-1.5 rounded border border-slate-300 text-sm outline-none focus:border-orange-500"
+                        />
+                      </div>
+                      {/* Kamoku */}
+                      <div className="space-y-1">
+                        <label className="text-xs text-slate-500 font-medium">相手勘定科目</label>
+                        <select
+                          value={filters.kamoku}
+                          onChange={e => setFilters(prev => ({ ...prev, kamoku: e.target.value }))}
+                          className="w-full px-2 py-1.5 rounded border border-slate-300 text-sm outline-none focus:border-orange-500"
+                        >
+                          <option value="">すべて</option>
+                          {filterOptions.kamoku.map(k => (
+                            <option key={k} value={k}>{k}</option>
+                          ))}
+                        </select>
+                      </div>
+                      {/* SubKamoku */}
+                      <div className="space-y-1">
+                        <label className="text-xs text-slate-500 font-medium">補助科目</label>
+                        <select
+                          value={filters.subKamoku}
+                          onChange={e => setFilters(prev => ({ ...prev, subKamoku: e.target.value }))}
+                          className="w-full px-2 py-1.5 rounded border border-slate-300 text-sm outline-none focus:border-orange-500"
+                        >
+                          <option value="">すべて</option>
+                          {filterOptions.subKamoku.map(s => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </div>
+                      {/* Invoice */}
+                      <div className="space-y-1">
+                        <label className="text-xs text-slate-500 font-medium">インボイス</label>
+                        <select
+                          value={filters.invoiceNumber}
+                          onChange={e => setFilters(prev => ({ ...prev, invoiceNumber: e.target.value }))}
+                          className="w-full px-2 py-1.5 rounded border border-slate-300 text-sm outline-none focus:border-orange-500"
+                        >
+                          <option value="">すべて</option>
+                          <option value="適格">適格</option>
+                          <option value="非適格">非適格</option>
+                        </select>
+                      </div>
+                      {/* Tax Category */}
+                      <div className="space-y-1">
+                        <label className="text-xs text-slate-500 font-medium">税区分</label>
+                        <select
+                          value={filters.taxCategory}
+                          onChange={e => setFilters(prev => ({ ...prev, taxCategory: e.target.value }))}
+                          className="w-full px-2 py-1.5 rounded border border-slate-300 text-sm outline-none focus:border-orange-500"
+                        >
+                          <option value="">すべて</option>
+                          {filterOptions.taxCategory.map(tc => (
+                            <option key={tc} value={tc}>{tc}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    {hasActiveFilters && (
+                      <div className="flex justify-end">
+                        <button
+                          onClick={clearAllFilters}
+                          className="text-xs text-slate-500 hover:text-orange-600 flex items-center gap-1"
+                        >
+                          <X className="w-3 h-3" />
+                          フィルターをクリア
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Action buttons - separate row for better visibility */}
@@ -1063,20 +1248,11 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
                 </button>
               </div>
 
-              {/* Kamoku Autocomplete Datalist */}
-              <datalist id="kamoku-suggestions">
-                {availableKamokuList.map(k => <option key={k} value={k} />)}
-                {(Object.values(learningRules) as RuleValue[]).map((rule, i) =>
-                  rule.kamoku && !availableKamokuList.includes(rule.kamoku) ?
-                    <option key={`learned-${i}`} value={rule.kamoku} /> : null
-                )}
-              </datalist>
-
               {/* Mobile Card Layout */}
               {isMobile ? (
                 <div className="p-4 space-y-3 max-h-[500px] overflow-y-auto">
                   {filteredTransactions.map(t => (
-                    <div key={t.id} className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                    <div key={t.id} className={`rounded-lg p-4 border ${t.toggled ? 'bg-yellow-50 border-yellow-300' : 'bg-slate-50 border-slate-200'}`}>
                       <div className="flex items-center justify-between mb-3">
                         <input
                           value={t.date}
@@ -1104,6 +1280,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
                       <input
                         value={t.description}
                         onChange={e => updateTransaction(t.id, 'description', e.target.value)}
+                        title={t.description}
                         className="w-full font-medium text-slate-700 bg-transparent outline-none focus:bg-white rounded px-2 py-1 border border-transparent focus:border-orange-500 mb-3"
                         aria-label="摘要"
                       />
@@ -1111,20 +1288,32 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
                         <div>
                           <label className="text-xs text-slate-500 block mb-1">勘定科目</label>
                           <input
-                            list="kamoku-suggestions"
+                            list={`kamoku-list-mobile-${t.id}`}
                             value={t.kamoku || ''}
                             placeholder={t.amount < 0 ? '仮払金' : '仮受金'}
                             onChange={e => updateTransaction(t.id, 'kamoku', e.target.value)}
                             className={`w-full bg-white px-2 py-2 rounded-lg border border-slate-300 outline-none focus:border-orange-500 text-sm font-medium ${t.amount < 0 ? 'text-red-600' : 'text-blue-600'}`}
                           />
+                          <datalist id={`kamoku-list-mobile-${t.id}`}>
+                            {availableKamokuList.map(name => (
+                              <option key={name} value={name} />
+                            ))}
+                          </datalist>
                         </div>
                         <div>
                           <label className="text-xs text-slate-500 block mb-1">補助科目</label>
                           <input
+                            list={`subkamoku-list-mobile-${t.id}`}
                             value={t.subKamoku || ''}
+                            placeholder="-"
                             onChange={e => updateTransaction(t.id, 'subKamoku', e.target.value)}
                             className="w-full bg-white px-2 py-2 rounded-lg border border-slate-300 outline-none focus:border-orange-500 text-sm"
                           />
+                          <datalist id={`subkamoku-list-mobile-${t.id}`}>
+                            {getSubAccountsForKamoku(t.kamoku || '').map(sub => (
+                              <option key={sub} value={sub} />
+                            ))}
+                          </datalist>
                         </div>
                       </div>
                       <div className="flex items-center justify-between pt-2 border-t border-slate-200">
@@ -1172,6 +1361,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 text-slate-600 text-xs font-medium uppercase sticky top-0 z-10">
                       <tr>
+                        <th className="px-2 py-3 text-center w-12">切替</th>
                         <th className="px-4 py-3 text-left min-w-[140px]">取引日</th>
                         <th className="px-4 py-3 text-left min-w-[200px]">摘要</th>
                         <th className="px-4 py-3 text-left min-w-[140px]">相手勘定科目</th>
@@ -1184,7 +1374,16 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {filteredTransactions.map(t => (
-                        <tr key={t.id} className="hover:bg-slate-50 transition-colors">
+                        <tr key={t.id} className={`transition-colors ${t.toggled ? 'bg-yellow-50 hover:bg-yellow-100' : 'hover:bg-slate-50'}`}>
+                          <td className="p-2 text-center">
+                            <button
+                              onClick={() => toggleTransactionSign(t.id)}
+                              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                              aria-label="収支を切り替え"
+                            >
+                              <ArrowUpDown className="w-4 h-4" />
+                            </button>
+                          </td>
                           <td className="p-3">
                             <input
                               value={t.date}
@@ -1197,41 +1396,47 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
                             <input
                               value={t.description}
                               onChange={e => updateTransaction(t.id, 'description', e.target.value)}
-                              className="w-full bg-transparent px-2 py-1 outline-none focus:bg-white rounded border border-transparent focus:border-orange-500"
+                              title={t.description}
+                              className="w-full bg-transparent px-2 py-1 outline-none focus:bg-white rounded border border-transparent focus:border-orange-500 truncate"
                               aria-label="摘要"
                             />
                           </td>
                           <td className="p-3">
                             <div className="relative">
                               <input
-                                list="kamoku-suggestions"
+                                list={`kamoku-list-${t.id}`}
                                 value={t.kamoku || ''}
                                 placeholder={t.amount < 0 ? '仮払金' : '仮受金'}
                                 onChange={e => updateTransaction(t.id, 'kamoku', e.target.value)}
                                 className={`w-full bg-transparent px-2 py-1 outline-none focus:bg-white rounded border border-transparent focus:border-orange-500 font-medium ${t.amount < 0 ? 'text-red-600' : 'text-blue-600'}`}
                                 aria-label="相手勘定科目"
                               />
+                              <datalist id={`kamoku-list-${t.id}`}>
+                                {availableKamokuList.map(name => (
+                                  <option key={name} value={name} />
+                                ))}
+                              </datalist>
                               {learningRules[t.description] && learningRules[t.description].kamoku === t.kamoku && (
-                                <Save className="absolute right-1 top-1/2 -translate-y-1/2 w-3 h-3 text-blue-500" aria-label="学習済み" />
+                                <Save className="absolute right-6 top-1/2 -translate-y-1/2 w-3 h-3 text-blue-500" aria-label="学習済み" />
                               )}
                             </div>
                           </td>
                           <td className="p-3">
                             <input
+                              list={`subkamoku-list-${t.id}`}
                               value={t.subKamoku || ''}
+                              placeholder="-"
                               onChange={e => updateTransaction(t.id, 'subKamoku', e.target.value)}
                               className="w-full bg-transparent px-2 py-1 outline-none focus:bg-white rounded border border-transparent focus:border-orange-500"
                               aria-label="相手補助科目"
                             />
+                            <datalist id={`subkamoku-list-${t.id}`}>
+                              {getSubAccountsForKamoku(t.kamoku || '').map(sub => (
+                                <option key={sub} value={sub} />
+                              ))}
+                            </datalist>
                           </td>
-                          <td className="p-3 relative flex items-center">
-                            <button
-                              onClick={() => toggleTransactionSign(t.id)}
-                              className="absolute left-1 p-1 text-slate-400 hover:text-slate-600 transition-colors"
-                              aria-label="収支を切り替え"
-                            >
-                              <ArrowUpDown className="w-3 h-3" />
-                            </button>
+                          <td className="p-3">
                             <input
                               type="number"
                               value={t.amount}

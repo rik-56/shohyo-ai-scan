@@ -10,6 +10,7 @@ export interface Transaction {
   subKamoku?: string; // Opposite Sub-Account Item (相手補助科目)
   invoiceNumber?: string; // T番号 (インボイス番号)
   taxCategory?: string; // 税区分（課税仕入10%、軽減8%など）
+  toggled?: boolean; // 入金/支出を切り替えた行のフラグ
 }
 
 // 勘定科目と紐づく補助科目

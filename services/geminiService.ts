@@ -185,6 +185,17 @@ export const parseManualJsonResponse = (jsonText: string): Transaction[] => {
   // Remove trailing commas before ] or }
   cleanedText = cleanedText.replace(/,(\s*[\]\}])/g, '$1');
 
+  // 不完全なJSON（閉じ括弧がない）を検出
+  if (cleanedText.startsWith('[') && !cleanedText.endsWith(']')) {
+    throw new AnalysisError('INVALID_RESPONSE',
+      'JSONが途中で切れています（トークン制限超過の可能性）。PDFを分割してお試しください。');
+  }
+
+  // Handle empty array case (no transactions found)
+  if (cleanedText === '[]' || cleanedText.trim() === '[]') {
+    return [];
+  }
+
   let rawData: any[];
   try {
     rawData = JSON.parse(cleanedText);
@@ -196,15 +207,24 @@ export const parseManualJsonResponse = (jsonText: string): Transaction[] => {
         // Try the last match (often the actual data)
         rawData = JSON.parse(lastBracketMatch[lastBracketMatch.length - 1]);
       } catch {
-        throw new AnalysisError('INVALID_RESPONSE', `JSONパースエラー: 有効なJSON形式ではありません`);
+        // Provide more detailed error message with response preview for debugging
+        const preview = cleanedText.substring(0, 200).replace(/\n/g, ' ');
+        throw new AnalysisError('INVALID_RESPONSE', `JSONパースエラー: 有効なJSON形式ではありません。レスポンス先頭: ${preview}...`);
       }
     } else {
-      throw new AnalysisError('INVALID_RESPONSE', `JSONパースエラー: 有効なJSON形式ではありません`);
+      // Provide more detailed error message with response preview for debugging
+      const preview = cleanedText.substring(0, 200).replace(/\n/g, ' ');
+      throw new AnalysisError('INVALID_RESPONSE', `JSONパースエラー: 有効なJSON形式ではありません。レスポンス先頭: ${preview}...`);
     }
   }
 
   if (!Array.isArray(rawData)) {
     throw new AnalysisError('INVALID_RESPONSE', '解析結果が配列形式ではありません');
+  }
+
+  // Handle empty array (no transactions in document)
+  if (rawData.length === 0) {
+    return [];
   }
 
   // Validate and normalize each item
@@ -288,7 +308,8 @@ export const analyzeWithGemini = async (
     ],
     generationConfig: {
       temperature: 0.1,
-      maxOutputTokens: 8192
+      maxOutputTokens: 32768,
+      responseMimeType: "application/json"  // 純粋なJSON出力を強制
     }
   };
 
@@ -332,8 +353,21 @@ export const analyzeWithGemini = async (
 
     const data = await response.json();
 
+    // 切り詰められたかチェック
+    const finishReason = data.candidates?.[0]?.finishReason;
+    console.log('[Gemini API] Finish reason:', finishReason);
+
+    if (finishReason === 'MAX_TOKENS') {
+      throw new AnalysisError('INVALID_RESPONSE',
+        '応答が長すぎて途中で切れました。PDFのページ数を減らすか、分割してお試しください。');
+    }
+
     // Extract text from Gemini response
     const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    // デバッグ用: レスポンス内容をログ出力
+    console.log('[Gemini API] Response text length:', textContent?.length);
+    console.log('[Gemini API] Response preview:', textContent?.substring(0, 500));
 
     if (!textContent) {
       throw new AnalysisError('INVALID_RESPONSE', 'Geminiからの応答が空です。');
