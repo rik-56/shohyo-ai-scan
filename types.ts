@@ -5,7 +5,6 @@ export interface Transaction {
   description: string;
   amount: number;
   type: 'income' | 'expense';
-  memo?: string;
   kamoku?: string; // Opposite Account Item (相手勘定科目)
   subKamoku?: string; // Opposite Sub-Account Item (相手補助科目)
   invoiceNumber?: string; // T番号 (インボイス番号)

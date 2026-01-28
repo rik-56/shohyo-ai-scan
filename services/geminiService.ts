@@ -308,7 +308,7 @@ export const analyzeWithGemini = async (
     ],
     generationConfig: {
       temperature: 0.1,
-      maxOutputTokens: 32768,
+      maxOutputTokens: 100000,
       responseMimeType: "application/json"  // 純粋なJSON出力を強制
     }
   };

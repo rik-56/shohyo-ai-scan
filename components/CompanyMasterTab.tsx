@@ -65,6 +65,8 @@ export const CompanyMasterTab: React.FC<CompanyMasterTabProps> = ({
 
   // 勘定科目の削除
   const handleDeleteAccount = (index: number) => {
+    const accountName = currentClientConfig.accounts[index]?.name || '';
+    if (!confirm(`勘定科目「${accountName}」を削除しますか？`)) return;
     const newAccounts = [...currentClientConfig.accounts];
     newAccounts.splice(index, 1);
     onAccountMasterChange(selectedClient, {
@@ -98,6 +100,7 @@ export const CompanyMasterTab: React.FC<CompanyMasterTabProps> = ({
 
   // 補助科目の削除
   const handleDeleteSubAccount = (accountIndex: number, subAccountName: string) => {
+    if (!confirm(`補助科目「${subAccountName}」を削除しますか？`)) return;
     const account = currentClientConfig.accounts[accountIndex];
     const newAccounts = [...currentClientConfig.accounts];
     newAccounts[accountIndex] = {
@@ -128,6 +131,7 @@ export const CompanyMasterTab: React.FC<CompanyMasterTabProps> = ({
 
   // 元帳補助科目の削除
   const handleDeleteLedgerSubAccount = (ledgerType: 'cash' | 'shortTermLoan' | 'deposit' | 'credit', value: string) => {
+    if (!confirm(`元帳補助科目「${value}」を削除しますか？`)) return;
     const currentList = currentClientConfig.ledgerSubAccounts?.[ledgerType] || [];
     onAccountMasterChange(selectedClient, {
       ...currentClientConfig,
@@ -646,6 +650,7 @@ export const CompanyMasterTab: React.FC<CompanyMasterTabProps> = ({
                           <td className="px-4 py-2.5 text-center">
                             <button
                               onClick={() => {
+                                if (!confirm(`学習ルール「${description}」を削除しますか？`)) return;
                                 const { [description]: _, ...rest } = allLearningRules[selectedClient];
                                 onLearningRulesChange(selectedClient, rest);
                               }}

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Upload, Camera, FileText, Download, Trash2, AlertCircle, CheckCircle2, Settings, CreditCard, Landmark, Coins, Filter, Save, Plus, Briefcase, X, ArrowUpDown, History, FileClock, BookmarkPlus, CheckSquare, Square, Receipt, Bot, Loader2, ChevronDown, Calendar, CircleDollarSign, FolderOpen, Tag, FileCheck, GraduationCap, HelpCircle, Info } from 'lucide-react';
+import { Upload, Camera, FileText, Download, Trash2, AlertCircle, CheckCircle2, Settings, CreditCard, Landmark, Coins, Filter, Plus, Briefcase, X, ArrowUpDown, FileClock, BookmarkPlus, CheckSquare, Square, Receipt, Bot, Loader2, ChevronDown, Calendar, CircleDollarSign, FolderOpen, Tag, FileCheck, GraduationCap, HelpCircle } from 'lucide-react';
 import { Transaction, HistoryBatch, AccountMasterMap, AccountMasterConfig, LearningRulesMap } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Toast, useToast } from './Toast';
@@ -321,18 +321,9 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
 
   // Auto-fill ledger sub-account when company or book type changes
   useEffect(() => {
-    // availableLedgerSubAccountsから自動選択
-    if (availableLedgerSubAccounts.length === 1) {
-      // 1件のみの場合は自動選択
-      setSubAccount(availableLedgerSubAccounts[0]);
-    } else if (availableLedgerSubAccounts.length > 1) {
-      // 複数ある場合は最初の項目をデフォルト選択（または空欄でユーザーに選択させる）
-      setSubAccount(availableLedgerSubAccounts[0]);
-    } else {
-      // 0件の場合は空欄
-      setSubAccount('');
-    }
-  }, [bookType, currentClientMaster, selectedClient, availableLedgerSubAccounts]);
+    // 元帳切替時は常に補助科目を空欄（なし）にリセット
+    setSubAccount('');
+  }, [bookType, cashAccountType, selectedClient]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
