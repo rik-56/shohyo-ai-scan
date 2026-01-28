@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Upload, Camera, FileText, Download, Trash2, AlertCircle, CheckCircle2, Settings, CreditCard, Landmark, Coins, Filter, Save, Plus, Briefcase, X, ArrowUpDown, History, FileClock, BookmarkPlus, CheckSquare, Square, Receipt, Bot, Loader2, ChevronDown } from 'lucide-react';
-import { Transaction, HistoryBatch, AccountMasterMap, AccountMasterConfig } from '../types';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { Upload, Camera, FileText, Download, Trash2, AlertCircle, CheckCircle2, Settings, CreditCard, Landmark, Coins, Filter, Save, Plus, Briefcase, X, ArrowUpDown, History, FileClock, BookmarkPlus, CheckSquare, Square, Receipt, Bot, Loader2, ChevronDown, Calendar, CircleDollarSign, FolderOpen, Tag, FileCheck, GraduationCap, HelpCircle, Info } from 'lucide-react';
+import { Transaction, HistoryBatch, AccountMasterMap, AccountMasterConfig, LearningRulesMap } from '../types';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Toast, useToast } from './Toast';
 import { analyzeWithGemini, AnalysisError, errorMessages, GeminiModelId } from '../services/geminiService';
-import { DEFAULT_ACCOUNTS, DEFAULT_TAX_CATEGORIES } from '../constants';
+import { DEFAULT_ACCOUNTS, DEFAULT_TAX_CATEGORIES, UI_COLORS } from '../constants';
 
 // Props interface for ScannerTab
 interface ScannerTabProps {
@@ -14,6 +14,8 @@ interface ScannerTabProps {
   accountMasters: AccountMasterMap;
   onClientAdd?: (clientName: string) => void;
   onClientDelete?: (clientName: string) => void;
+  allLearningRules?: Record<string, LearningRulesMap>;
+  onLearningRulesChange?: (clientName: string, rules: LearningRulesMap) => void;
 }
 
 // Storage keys moved to parent (App.tsx) for centralized management
@@ -35,7 +37,25 @@ const STORAGE_KEY_CLIENTS = 'kakeibo_ai_clients';
 const STORAGE_PREFIX_RULES = 'kakeibo_ai_rules_';
 const STORAGE_KEY_HISTORY = 'kakeibo_ai_history';
 
-export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiModel, customTaxCategories, accountMasters, onClientAdd, onClientDelete }) => {
+// Simple Tooltip Component
+const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, children }) => (
+  <span className="group relative inline-flex items-center">
+    {children}
+    <span className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 text-xs text-white bg-slate-800 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 max-w-xs text-center shadow-lg">
+      {text}
+      <span className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-800" />
+    </span>
+  </span>
+);
+
+// Help Icon with Tooltip
+const HelpTip: React.FC<{ text: string }> = ({ text }) => (
+  <Tooltip text={text}>
+    <HelpCircle className="w-3.5 h-3.5 text-slate-400 hover:text-orange-500 cursor-help ml-1" />
+  </Tooltip>
+);
+
+export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiModel, customTaxCategories, accountMasters, onClientAdd, onClientDelete, allLearningRules, onLearningRulesChange }) => {
   const [clients, setClients] = useState<string[]>(['株式会社サンプル']);
   const [selectedClient, setSelectedClient] = useState<string>('株式会社サンプル');
   const [isAddingClient, setIsAddingClient] = useState(false);
@@ -110,6 +130,14 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
   // Deleted transaction for undo functionality
   const [lastDeletedTransaction, setLastDeletedTransaction] = useState<Transaction | null>(null);
 
+  // Batch edit mode
+  const [isBatchEditMode, setIsBatchEditMode] = useState(false);
+  const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(new Set());
+  const [batchKamoku, setBatchKamoku] = useState('');
+  const [batchSubKamoku, setBatchSubKamoku] = useState('');
+  const [batchTaxCategory, setBatchTaxCategory] = useState('');
+  const [batchInvoice, setBatchInvoice] = useState('');
+
   // Mobile responsive state
   const [isMobile, setIsMobile] = useState(false);
 
@@ -122,6 +150,41 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if we're in an input field
+      const target = e.target as HTMLElement;
+      const isInputField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+
+      // Ctrl/Cmd + S: Save to stock
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (transactions.length > 0) {
+          setTempSaveName(fileState?.name.split('.')[0] || '');
+          setIsSaveModalOpen(true);
+        }
+      }
+
+      // Ctrl/Cmd + E: Export CSV
+      if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+        e.preventDefault();
+        if (transactions.length > 0) {
+          downloadCSV();
+        }
+      }
+
+      // Escape: Close modals
+      if (e.key === 'Escape') {
+        if (isSaveModalOpen) setIsSaveModalOpen(false);
+        if (confirmDialog?.isOpen) setConfirmDialog(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [transactions.length, fileState, isSaveModalOpen, confirmDialog]);
 
   useEffect(() => {
     const savedClients = localStorage.getItem(STORAGE_KEY_CLIENTS);
@@ -422,12 +485,73 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
         const updatedRules = { ...learningRules, [target.description]: { kamoku: field === 'kamoku' ? value : (target.kamoku || ''), subKamoku: field === 'subKamoku' ? value : (target.subKamoku || '') } };
         setLearningRules(updatedRules);
         localStorage.setItem(`${STORAGE_PREFIX_RULES}${selectedClient}`, JSON.stringify(updatedRules));
+        onLearningRulesChange?.(selectedClient, updatedRules);
       }
     }
   };
 
   const toggleTransactionSign = (id: string) => {
     setTransactions(prev => prev.map(t => t.id === id ? { ...t, amount: -t.amount, toggled: !t.toggled, kamoku: t.kamoku === '仮払金' ? '仮受金' : t.kamoku === '仮受金' ? '仮払金' : t.kamoku } : t));
+  };
+
+  // Batch edit functions
+  const toggleTransactionSelection = (id: string) => {
+    const newSet = new Set(selectedTransactionIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedTransactionIds(newSet);
+  };
+
+  const selectAllTransactions = () => {
+    if (selectedTransactionIds.size === filteredTransactions.length) {
+      setSelectedTransactionIds(new Set());
+    } else {
+      setSelectedTransactionIds(new Set(filteredTransactions.map(t => t.id)));
+    }
+  };
+
+  const applyBatchEdit = () => {
+    if (selectedTransactionIds.size === 0) return;
+
+    setTransactions(prev => prev.map(t => {
+      if (!selectedTransactionIds.has(t.id)) return t;
+      const updates: Partial<Transaction> = {};
+      if (batchKamoku) {
+        updates.kamoku = batchKamoku;
+        // 学習ルールも更新
+        if (t.description) {
+          const updatedRules = { ...learningRules, [t.description]: { kamoku: batchKamoku, subKamoku: batchSubKamoku || t.subKamoku || '' } };
+          setLearningRules(updatedRules);
+          localStorage.setItem(`${STORAGE_PREFIX_RULES}${selectedClient}`, JSON.stringify(updatedRules));
+          onLearningRulesChange?.(selectedClient, updatedRules);
+        }
+      }
+      if (batchSubKamoku) updates.subKamoku = batchSubKamoku;
+      if (batchTaxCategory) updates.taxCategory = batchTaxCategory;
+      if (batchInvoice) updates.invoiceNumber = batchInvoice;
+      return { ...t, ...updates };
+    }));
+
+    showToast(`${selectedTransactionIds.size}件の取引を更新しました`, 'success');
+    // Reset batch edit state
+    setSelectedTransactionIds(new Set());
+    setBatchKamoku('');
+    setBatchSubKamoku('');
+    setBatchTaxCategory('');
+    setBatchInvoice('');
+    setIsBatchEditMode(false);
+  };
+
+  const cancelBatchEdit = () => {
+    setSelectedTransactionIds(new Set());
+    setBatchKamoku('');
+    setBatchSubKamoku('');
+    setBatchTaxCategory('');
+    setBatchInvoice('');
+    setIsBatchEditMode(false);
   };
 
   // Handlers for searchable kamoku combobox
@@ -521,7 +645,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
     if (!targetTransaction) return;
 
     // Confirmation dialog
-    if (!window.confirm('この取引を削除しますか？')) return;
+    if (!window.confirm(`「${targetTransaction.date} ${targetTransaction.description}」を削除しますか？`)) return;
 
     setLastDeletedTransaction(targetTransaction);
     setTransactions(prev => prev.filter(t => t.id !== id));
@@ -680,66 +804,117 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
-      {/* Client Tabs */}
-      <div className="overflow-x-auto pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 flex gap-2 min-w-max" role="tablist" aria-label="クライアント選択">
-        {clients.map((c, index) => (
-          <div
-            key={c}
-            role="tab"
-            tabIndex={0}
-            aria-selected={selectedClient === c}
-            onClick={() => { setSelectedClient(c); setViewingHistoryId(null); }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                setSelectedClient(c);
-                setViewingHistoryId(null);
-              }
-            }}
-            className={`group relative flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer border transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${selectedClient === c ? 'bg-orange-600 border-orange-600 text-white font-medium' : 'bg-white border-slate-200 text-slate-600 hover:border-orange-300 hover:text-orange-600'}`}
-          >
-            <Briefcase className="w-4 h-4" />{c}
-            {clients.length > 1 && (
-              <button
-                onClick={(e) => handleDeleteClient(c, e)}
-                className="opacity-0 group-hover:opacity-100 p-0.5 focus:opacity-100"
-                aria-label={`${c}を削除`}
+      {/* Client Tabs - Mobile Dropdown / Desktop Tabs */}
+      {isMobile ? (
+        <div className="pb-4">
+          <label className="text-xs font-medium text-slate-500 mb-2 block">クライアント選択</label>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <select
+                value={selectedClient}
+                onChange={(e) => { setSelectedClient(e.target.value); setViewingHistoryId(null); }}
+                className="w-full appearance-none px-4 py-3 pr-10 rounded-lg border border-slate-300 bg-white text-slate-700 font-medium outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                aria-label="クライアント選択"
               >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-        ))}
-        {isAddingClient ? (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-orange-300 rounded-lg">
-            <input
-              autoFocus
-              value={newClientName}
-              onChange={e => setNewClientName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleAddClient()}
-              placeholder="会社名"
-              className="text-sm outline-none w-32 bg-transparent"
-              aria-label="新しいクライアント名"
-            />
-            <button onClick={handleAddClient} className="bg-orange-600 text-white p-1 rounded" aria-label="クライアントを追加">
-              <Plus className="w-3 h-3" />
+                {clients.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <ChevronDown className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
+            <button
+              onClick={() => setIsAddingClient(true)}
+              className="px-4 py-3 bg-orange-600 text-white rounded-lg font-medium flex items-center gap-1 hover:bg-orange-700 transition-all"
+              aria-label="新しいクライアントを追加"
+            >
+              <Plus className="w-4 h-4" />
             </button>
           </div>
-        ) : (
-          <button
-            onClick={() => setIsAddingClient(true)}
-            className="flex items-center gap-1 px-4 py-2 text-slate-400 border border-dashed border-slate-300 rounded-lg bg-white hover:border-orange-300 hover:text-orange-600 transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-            aria-label="新しいクライアントを追加"
-          >
-            <Plus className="w-4 h-4" />追加
-          </button>
-        )}
-      </div>
+          {isAddingClient && (
+            <div className="mt-3 flex items-center gap-2 p-3 bg-white border border-orange-300 rounded-lg">
+              <input
+                autoFocus
+                value={newClientName}
+                onChange={e => setNewClientName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddClient()}
+                placeholder="会社名を入力"
+                className="flex-1 text-sm outline-none bg-transparent"
+                aria-label="新しいクライアント名"
+              />
+              <button onClick={handleAddClient} className="bg-orange-600 text-white px-3 py-1.5 rounded font-medium text-sm" aria-label="クライアントを追加">
+                追加
+              </button>
+              <button onClick={() => { setIsAddingClient(false); setNewClientName(''); }} className="text-slate-400 hover:text-slate-600 p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="overflow-x-auto pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 flex gap-2 min-w-max" role="tablist" aria-label="クライアント選択">
+          {clients.map((c, index) => (
+            <div
+              key={c}
+              role="tab"
+              tabIndex={0}
+              aria-selected={selectedClient === c}
+              onClick={() => { setSelectedClient(c); setViewingHistoryId(null); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelectedClient(c);
+                  setViewingHistoryId(null);
+                }
+              }}
+              className={`group relative flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer border transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${selectedClient === c ? 'bg-orange-600 border-orange-600 text-white font-medium' : 'bg-white border-slate-200 text-slate-600 hover:border-orange-300 hover:text-orange-600'}`}
+            >
+              <Briefcase className="w-4 h-4" />{c}
+              {clients.length > 1 && (
+                <button
+                  onClick={(e) => handleDeleteClient(c, e)}
+                  className="opacity-0 group-hover:opacity-100 p-0.5 focus:opacity-100"
+                  aria-label={`${c}を削除`}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          ))}
+          {isAddingClient ? (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-orange-300 rounded-lg">
+              <input
+                autoFocus
+                value={newClientName}
+                onChange={e => setNewClientName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddClient()}
+                placeholder="会社名"
+                className="text-sm outline-none w-32 bg-transparent"
+                aria-label="新しいクライアント名"
+              />
+              <button onClick={handleAddClient} className="bg-orange-600 text-white p-1 rounded" aria-label="クライアントを追加">
+                <Plus className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsAddingClient(true)}
+              className="flex items-center gap-1 px-4 py-2 text-slate-400 border border-dashed border-slate-300 rounded-lg bg-white hover:border-orange-300 hover:text-orange-600 transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+              aria-label="新しいクライアントを追加"
+            >
+              <Plus className="w-4 h-4" />追加
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="space-y-6">
         {/* Settings */}
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <h2 className="text-base font-semibold text-slate-700 mb-5 flex items-center gap-2"><Settings className="w-5 h-5 text-orange-600" />{selectedClient} の帳簿設定</h2>
+          <h2 className="text-base font-semibold text-slate-700 mb-5 flex items-center gap-2">
+            <Settings className="w-5 h-5 text-orange-600" />
+            {selectedClient} の帳簿設定
+            <HelpTip text="証憑の種類に応じて元帳を選択してください。選択した元帳が仕訳の貸方/借方に自動設定されます。" />
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-600">元帳の種類</label>
@@ -812,6 +987,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
                   onChange={e => setSubAccount(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                 >
+                  <option value="">（なし）</option>
                   {availableLedgerSubAccounts.map(sub => (
                     <option key={sub} value={sub}>{sub}</option>
                   ))}
@@ -838,6 +1014,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
             <h3 className="text-sm font-medium text-slate-600 mb-3 flex items-center gap-2">
               <FileText className="w-4 h-4 text-orange-600" />
               CSV出力時の勘定科目（事前選択）
+              <HelpTip text="全取引に同じ勘定科目を設定する場合に便利です。例：経費精算でほぼ全て旅費交通費の場合など。" />
             </h3>
             <p className="text-xs text-slate-500 mb-4">
               ここで選択した科目が、CSV出力時にすべての取引に適用されます（空欄の場合は個別設定が使われます）
@@ -846,66 +1023,68 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
               {/* Kamoku Searchable Combobox */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-slate-500">相手勘定科目</label>
-                <div className="relative">
-                  <div className="relative">
-                    <input
-                      ref={kamokuInputRef}
-                      type="text"
-                      value={isKamokuDropdownOpen ? kamokuSearchText : preSelectedKamoku}
-                      onChange={e => {
-                        setKamokuSearchText(e.target.value);
-                        setIsKamokuDropdownOpen(true);
-                        setKamokuHighlightIndex(-1);
-                      }}
-                      onFocus={() => setIsKamokuDropdownOpen(true)}
-                      onKeyDown={handleKamokuKeyDown}
-                      placeholder="入力して検索 または 選択..."
-                      className="w-full px-3 py-2 pr-8 rounded-lg border border-slate-300 bg-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setIsKamokuDropdownOpen(!isKamokuDropdownOpen)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      <ChevronDown className={`w-4 h-4 transition-transform ${isKamokuDropdownOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                  </div>
-                  {isKamokuDropdownOpen && (
-                    <div
-                      ref={kamokuDropdownRef}
-                      className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
-                    >
-                      {filteredKamokuList.length > 0 ? (
-                        filteredKamokuList.map((kamoku, index) => (
-                          <div
-                            key={kamoku}
-                            onClick={() => handleKamokuSelect(kamoku)}
-                            className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
-                              index === kamokuHighlightIndex
-                                ? 'bg-orange-100 text-orange-700'
-                                : 'hover:bg-slate-50'
-                            }`}
-                          >
-                            {kamoku}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="px-3 py-2 text-sm text-slate-400">該当する勘定科目がありません</div>
-                      )}
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <div className="relative">
+                      <input
+                        ref={kamokuInputRef}
+                        type="text"
+                        value={isKamokuDropdownOpen ? kamokuSearchText : preSelectedKamoku}
+                        onChange={e => {
+                          setKamokuSearchText(e.target.value);
+                          setIsKamokuDropdownOpen(true);
+                          setKamokuHighlightIndex(-1);
+                        }}
+                        onFocus={() => setIsKamokuDropdownOpen(true)}
+                        onKeyDown={handleKamokuKeyDown}
+                        placeholder="入力して検索 または 選択..."
+                        className="w-full px-3 py-2 pr-8 rounded-lg border border-slate-300 bg-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setIsKamokuDropdownOpen(!isKamokuDropdownOpen)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        <ChevronDown className={`w-4 h-4 transition-transform ${isKamokuDropdownOpen ? 'rotate-180' : ''}`} />
+                      </button>
                     </div>
-                  )}
-                </div>
-                {preSelectedKamoku && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
-                      選択中: {preSelectedKamoku}
-                    </span>
+                    {isKamokuDropdownOpen && (
+                      <div
+                        ref={kamokuDropdownRef}
+                        className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                      >
+                        {filteredKamokuList.length > 0 ? (
+                          filteredKamokuList.map((kamoku, index) => (
+                            <div
+                              key={kamoku}
+                              onClick={() => handleKamokuSelect(kamoku)}
+                              className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
+                                index === kamokuHighlightIndex
+                                  ? 'bg-orange-100 text-orange-700'
+                                  : 'hover:bg-slate-50'
+                              }`}
+                            >
+                              {kamoku}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="px-3 py-2 text-sm text-slate-400">該当する勘定科目がありません</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {preSelectedKamoku && (
                     <button
                       onClick={() => { setPreSelectedKamoku(''); setPreSelectedSubKamoku(''); }}
-                      className="text-xs text-slate-400 hover:text-red-500"
+                      className="px-3 py-2 text-xs text-red-600 hover:bg-red-50 border border-red-200 rounded-lg font-medium transition-all whitespace-nowrap"
                     >
                       クリア
                     </button>
+                  )}
+                </div>
+                {preSelectedKamoku && (
+                  <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded inline-block">
+                    選択中: {preSelectedKamoku}
                   </div>
                 )}
               </div>
@@ -913,68 +1092,70 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
               {/* SubKamoku Searchable Combobox */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-slate-500">相手補助科目</label>
-                <div className="relative">
-                  <div className="relative">
-                    <input
-                      ref={subKamokuInputRef}
-                      type="text"
-                      value={isSubKamokuDropdownOpen ? subKamokuSearchText : preSelectedSubKamoku}
-                      onChange={e => {
-                        setSubKamokuSearchText(e.target.value);
-                        setIsSubKamokuDropdownOpen(true);
-                        setSubKamokuHighlightIndex(-1);
-                      }}
-                      onFocus={() => availableSubKamokuList.length > 0 && setIsSubKamokuDropdownOpen(true)}
-                      onKeyDown={handleSubKamokuKeyDown}
-                      placeholder={availableSubKamokuList.length > 0 ? "入力して検索 または 選択..." : "自由入力（マスタ未登録）"}
-                      className="w-full px-3 py-2 pr-8 rounded-lg border border-slate-300 bg-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm"
-                    />
-                    {availableSubKamokuList.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setIsSubKamokuDropdownOpen(!isSubKamokuDropdownOpen)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                      >
-                        <ChevronDown className={`w-4 h-4 transition-transform ${isSubKamokuDropdownOpen ? 'rotate-180' : ''}`} />
-                      </button>
-                    )}
-                  </div>
-                  {isSubKamokuDropdownOpen && availableSubKamokuList.length > 0 && (
-                    <div
-                      ref={subKamokuDropdownRef}
-                      className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
-                    >
-                      {filteredSubKamokuList.length > 0 ? (
-                        filteredSubKamokuList.map((sub, index) => (
-                          <div
-                            key={sub}
-                            onClick={() => handleSubKamokuSelect(sub)}
-                            className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
-                              index === subKamokuHighlightIndex
-                                ? 'bg-blue-100 text-blue-700'
-                                : 'hover:bg-slate-50'
-                            }`}
-                          >
-                            {sub}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="px-3 py-2 text-sm text-slate-400">該当する補助科目がありません</div>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <div className="relative">
+                      <input
+                        ref={subKamokuInputRef}
+                        type="text"
+                        value={isSubKamokuDropdownOpen ? subKamokuSearchText : preSelectedSubKamoku}
+                        onChange={e => {
+                          setSubKamokuSearchText(e.target.value);
+                          setIsSubKamokuDropdownOpen(true);
+                          setSubKamokuHighlightIndex(-1);
+                        }}
+                        onFocus={() => availableSubKamokuList.length > 0 && setIsSubKamokuDropdownOpen(true)}
+                        onKeyDown={handleSubKamokuKeyDown}
+                        placeholder={availableSubKamokuList.length > 0 ? "入力して検索 または 選択..." : "自由入力（マスタ未登録）"}
+                        className="w-full px-3 py-2 pr-8 rounded-lg border border-slate-300 bg-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm"
+                      />
+                      {availableSubKamokuList.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setIsSubKamokuDropdownOpen(!isSubKamokuDropdownOpen)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          <ChevronDown className={`w-4 h-4 transition-transform ${isSubKamokuDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
                       )}
                     </div>
-                  )}
-                </div>
-                {preSelectedSubKamoku && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                      選択中: {preSelectedSubKamoku}
-                    </span>
+                    {isSubKamokuDropdownOpen && availableSubKamokuList.length > 0 && (
+                      <div
+                        ref={subKamokuDropdownRef}
+                        className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                      >
+                        {filteredSubKamokuList.length > 0 ? (
+                          filteredSubKamokuList.map((sub, index) => (
+                            <div
+                              key={sub}
+                              onClick={() => handleSubKamokuSelect(sub)}
+                              className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
+                                index === subKamokuHighlightIndex
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : 'hover:bg-slate-50'
+                              }`}
+                            >
+                              {sub}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="px-3 py-2 text-sm text-slate-400">該当する補助科目がありません</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {preSelectedSubKamoku && (
                     <button
                       onClick={() => setPreSelectedSubKamoku('')}
-                      className="text-xs text-slate-400 hover:text-red-500"
+                      className="px-3 py-2 text-xs text-red-600 hover:bg-red-50 border border-red-200 rounded-lg font-medium transition-all whitespace-nowrap"
                     >
                       クリア
                     </button>
+                  )}
+                </div>
+                {preSelectedSubKamoku && (
+                  <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded inline-block">
+                    選択中: {preSelectedSubKamoku}
                   </div>
                 )}
                 {availableSubKamokuList.length === 0 && preSelectedKamoku && (
@@ -1061,8 +1242,11 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
                           <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${aiAutoKamoku ? 'translate-x-5' : ''}`} />
                         </div>
                       </div>
-                      <div>
-                        <span className="text-sm font-medium text-slate-700">AIおまかせモード</span>
+                      <div className="flex-1">
+                        <span className="text-sm font-medium text-slate-700 flex items-center">
+                          AIおまかせモード
+                          <HelpTip text="ONにするとAIが摘要から勘定科目を推測します。学習ルールがある場合はそちらが優先されます。" />
+                        </span>
                         <p className="text-xs text-slate-500">ONにするとAIが勘定科目を推測します</p>
                       </div>
                     </label>
@@ -1084,14 +1268,41 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
         </div>
 
         {/* Empty State */}
-        {!viewingHistoryId && fileState && transactions.length === 0 && (
+        {!viewingHistoryId && fileState && transactions.length === 0 && !isAnalyzing && (
           <div className="bg-white p-10 rounded-xl border border-slate-200 shadow-sm text-center">
-            <Receipt className="w-14 h-14 mx-auto text-slate-300 mb-4" />
-            <h3 className="text-lg font-semibold text-slate-600 mb-2">取引データがありません</h3>
-            <p className="text-slate-500 mb-4">「AI解析を実行する」ボタンをクリックして証憑を解析してください。</p>
-            <div className="text-sm text-slate-500 bg-slate-50 rounded-lg p-4 inline-block">
-              <p className="font-medium mb-1">対応フォーマット:</p>
-              <p>レシート・領収書 / 通帳 / クレジットカード明細 / CSV</p>
+            <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-orange-100 to-amber-50 rounded-full flex items-center justify-center">
+              <Receipt className="w-12 h-12 text-orange-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-700 mb-2">取引データがありません</h3>
+            <p className="text-slate-500 mb-6">「AI自動解析」ボタンをクリックして証憑を解析してください。</p>
+            <div className="text-sm text-slate-600 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-5 inline-block border border-orange-100">
+              <p className="font-semibold mb-2 text-orange-700">対応フォーマット</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <span className="px-3 py-1 bg-white rounded-full text-xs border border-orange-200">レシート</span>
+                <span className="px-3 py-1 bg-white rounded-full text-xs border border-orange-200">領収書</span>
+                <span className="px-3 py-1 bg-white rounded-full text-xs border border-orange-200">通帳</span>
+                <span className="px-3 py-1 bg-white rounded-full text-xs border border-orange-200">クレカ明細</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Analyzing State */}
+        {isAnalyzing && (
+          <div className="bg-white p-10 rounded-xl border border-slate-200 shadow-sm text-center">
+            <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-orange-100 to-amber-50 rounded-full flex items-center justify-center animate-pulse">
+              <Bot className="w-12 h-12 text-orange-500" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-700 mb-2 flex items-center justify-center gap-2">
+              <Loader2 className="w-5 h-5 animate-spin text-orange-600" />
+              AI解析中...
+            </h3>
+            <p className="text-slate-500 mb-4">証憑から取引情報を読み取っています</p>
+            <div className="max-w-xs mx-auto">
+              <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-orange-400 to-amber-400 rounded-full animate-progress" />
+              </div>
+              <p className="text-xs text-slate-400 mt-2">日付・金額・摘要を抽出しています...</p>
             </div>
           </div>
         )}
@@ -1101,22 +1312,37 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
           <div className="space-y-6">
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
               <div className="h-64 w-full">
-                <ResponsiveContainer><BarChart data={monthlyChartData}><CartesianGrid vertical={false} stroke="#e2e8f0" /><XAxis dataKey="month" /><YAxis /><Tooltip /><Legend /><Bar name="収入" dataKey="income" fill="#22c55e" radius={4} /><Bar name="支出" dataKey="expense" fill="#ef4444" radius={4} /></BarChart></ResponsiveContainer>
+                <ResponsiveContainer><BarChart data={monthlyChartData}><CartesianGrid vertical={false} stroke="#e2e8f0" /><XAxis dataKey="month" /><YAxis /><RechartsTooltip /><Legend /><Bar name="収入" dataKey="income" fill="#22c55e" radius={4} /><Bar name="支出" dataKey="expense" fill="#ef4444" radius={4} /></BarChart></ResponsiveContainer>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
               {/* Header with title */}
               <div className="p-4 sm:p-5 bg-slate-50 border-b border-slate-100">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <h3 className="font-semibold text-slate-700 flex items-center gap-2">
-                    <CheckCircle2 className="text-orange-600 w-5 h-5" />仕訳プレビュー
-                    {hasActiveFilters && (
-                      <span className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
-                        {filteredTransactions.length}/{transactions.length}件
-                      </span>
-                    )}
-                  </h3>
+                  <div className="flex items-center gap-3">
+                    <h3 className="font-semibold text-slate-700 flex items-center gap-2">
+                      <CheckCircle2 className="text-orange-600 w-5 h-5" />仕訳プレビュー
+                      {hasActiveFilters && (
+                        <span className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
+                          {filteredTransactions.length}/{transactions.length}件
+                        </span>
+                      )}
+                    </h3>
+                    {/* Batch Edit Toggle */}
+                    <Tooltip text="複数の取引を選択して勘定科目や税区分を一括設定できます">
+                      <button
+                        onClick={() => setIsBatchEditMode(!isBatchEditMode)}
+                        className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${
+                          isBatchEditMode
+                            ? 'bg-orange-600 text-white'
+                            : 'bg-white border border-slate-300 text-slate-600 hover:border-orange-300 hover:text-orange-600'
+                        }`}
+                      >
+                        {isBatchEditMode ? '選択モード中' : '一括編集'}
+                      </button>
+                    </Tooltip>
+                  </div>
                   <div className="flex items-center gap-2 w-full sm:w-auto">
                     <div className="relative flex-1 sm:flex-none sm:w-48">
                       <Filter className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -1236,121 +1462,255 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
                     )}
                   </div>
                 )}
+
+                {/* Batch Edit Panel */}
+                {isBatchEditMode && (
+                  <div className="mt-4 pt-4 border-t border-orange-200 bg-orange-50/50 -mx-4 -mb-4 px-4 pb-4 sm:-mx-5 sm:px-5 sm:-mb-5 sm:pb-5 rounded-b-xl">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={selectAllTransactions}
+                          className="text-xs font-medium px-3 py-1.5 bg-white border border-slate-300 rounded-lg hover:border-orange-300 transition-all"
+                        >
+                          {selectedTransactionIds.size === filteredTransactions.length ? '全選択解除' : '全選択'}
+                        </button>
+                        <span className="text-sm text-slate-600">
+                          <span className="font-semibold text-orange-600">{selectedTransactionIds.size}</span>件選択中
+                        </span>
+                      </div>
+                      <button
+                        onClick={cancelBatchEdit}
+                        className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1"
+                      >
+                        <X className="w-3 h-3" />
+                        キャンセル
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                      {/* Batch Kamoku */}
+                      <div className="space-y-1">
+                        <label className="text-xs text-slate-600 font-medium">勘定科目</label>
+                        <select
+                          value={batchKamoku}
+                          onChange={e => setBatchKamoku(e.target.value)}
+                          className="w-full px-2 py-2 rounded-lg border border-slate-300 text-sm outline-none focus:border-orange-500 bg-white"
+                        >
+                          <option value="">変更なし</option>
+                          {availableKamokuList.map(k => (
+                            <option key={k} value={k}>{k}</option>
+                          ))}
+                        </select>
+                      </div>
+                      {/* Batch SubKamoku */}
+                      <div className="space-y-1">
+                        <label className="text-xs text-slate-600 font-medium">補助科目</label>
+                        <select
+                          value={batchSubKamoku}
+                          onChange={e => setBatchSubKamoku(e.target.value)}
+                          className="w-full px-2 py-2 rounded-lg border border-slate-300 text-sm outline-none focus:border-orange-500 bg-white"
+                        >
+                          <option value="">変更なし</option>
+                          {batchKamoku && getSubAccountsForKamoku(batchKamoku).map(s => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </div>
+                      {/* Batch Tax Category */}
+                      <div className="space-y-1">
+                        <label className="text-xs text-slate-600 font-medium">税区分</label>
+                        <select
+                          value={batchTaxCategory}
+                          onChange={e => setBatchTaxCategory(e.target.value)}
+                          className="w-full px-2 py-2 rounded-lg border border-slate-300 text-sm outline-none focus:border-orange-500 bg-white"
+                        >
+                          <option value="">変更なし</option>
+                          {allTaxCategories.map(tc => (
+                            <option key={tc} value={tc}>{tc}</option>
+                          ))}
+                        </select>
+                      </div>
+                      {/* Batch Invoice */}
+                      <div className="space-y-1">
+                        <label className="text-xs text-slate-600 font-medium">インボイス</label>
+                        <select
+                          value={batchInvoice}
+                          onChange={e => setBatchInvoice(e.target.value)}
+                          className="w-full px-2 py-2 rounded-lg border border-slate-300 text-sm outline-none focus:border-orange-500 bg-white"
+                        >
+                          <option value="">変更なし</option>
+                          <option value="適格">適格</option>
+                          <option value="非適格">非適格</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={applyBatchEdit}
+                      disabled={selectedTransactionIds.size === 0 || (!batchKamoku && !batchSubKamoku && !batchTaxCategory && !batchInvoice)}
+                      className="w-full sm:w-auto px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      選択した{selectedTransactionIds.size}件に適用
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Action buttons - separate row for better visibility */}
-              <div className="p-4 bg-white border-b border-slate-100 flex flex-col sm:flex-row gap-3">
-                <button onClick={() => { setTempSaveName(fileState?.name.split('.')[0] || ''); setIsSaveModalOpen(true); }} className="flex-1 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.99]">
-                  <BookmarkPlus className="w-5 h-5" />ストック保存
+              <div className="p-4 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100 flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => { setTempSaveName(fileState?.name.split('.')[0] || ''); setIsSaveModalOpen(true); }}
+                  className="sm:flex-none sm:w-auto px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.99] shadow-sm"
+                  title="Ctrl+S"
+                >
+                  <BookmarkPlus className="w-4 h-4" />
+                  <span>証憑保存</span>
                 </button>
-                <button onClick={downloadCSV} className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.99]">
-                  <Download className="w-5 h-5" />CSV出力
+                <div className="flex-1" />
+                <button
+                  onClick={downloadCSV}
+                  className="sm:flex-none sm:w-auto px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.99] shadow-md hover:shadow-lg"
+                  title="Ctrl+E"
+                >
+                  <Download className="w-5 h-5" />
+                  <span>CSV出力</span>
                 </button>
               </div>
 
               {/* Mobile Card Layout */}
               {isMobile ? (
-                <div className="p-4 space-y-3 max-h-[500px] overflow-y-auto">
+                <div className="p-4 space-y-4 max-h-[500px] overflow-y-auto">
                   {filteredTransactions.map(t => (
-                    <div key={t.id} className={`rounded-lg p-4 border ${t.toggled ? 'bg-yellow-50 border-yellow-300' : 'bg-slate-50 border-slate-200'}`}>
-                      <div className="flex items-center justify-between mb-3">
-                        <input
-                          value={t.date}
-                          onChange={e => updateTransaction(t.id, 'date', e.target.value)}
-                          className="text-sm text-slate-600 bg-transparent outline-none focus:bg-white rounded px-2 py-1 border border-transparent focus:border-orange-500 w-28"
-                          aria-label="取引日"
-                        />
+                    <div key={t.id} className={`rounded-xl overflow-hidden shadow-sm ${t.toggled ? UI_COLORS.table.rowToggled : 'border border-slate-200 bg-white'}`}>
+                      {/* Card Header */}
+                      <div className={`flex items-center justify-between p-3 ${t.amount < 0 ? 'bg-red-50' : 'bg-blue-50'}`}>
                         <div className="flex items-center gap-2">
+                          <span className={`text-xs font-semibold px-2 py-1 rounded ${t.amount < 0 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                            {t.amount < 0 ? '支出' : '収入'}
+                          </span>
+                          <input
+                            type="date"
+                            value={t.date.replace(/\//g, '-')}
+                            onChange={e => updateTransaction(t.id, 'date', e.target.value.replace(/-/g, '/'))}
+                            className="text-sm text-slate-600 bg-transparent outline-none focus:bg-white rounded px-2 py-1.5 border border-transparent focus:border-orange-500 min-h-[44px]"
+                            aria-label="取引日"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1">
                           <button
                             onClick={() => toggleTransactionSign(t.id)}
-                            className="p-1 text-slate-400 hover:text-slate-600"
+                            className="p-2.5 min-w-[44px] min-h-[44px] text-slate-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors flex items-center justify-center"
                             aria-label="収支を切り替え"
                           >
-                            <ArrowUpDown className="w-4 h-4" />
+                            <ArrowUpDown className="w-5 h-5" />
                           </button>
                           <button
                             onClick={() => deleteTransaction(t.id)}
-                            className="p-1 text-slate-400 hover:text-red-500"
+                            className="p-2.5 min-w-[44px] min-h-[44px] text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center justify-center"
                             aria-label="取引を削除"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-5 h-5" />
                           </button>
                         </div>
                       </div>
-                      <input
-                        value={t.description}
-                        onChange={e => updateTransaction(t.id, 'description', e.target.value)}
-                        title={t.description}
-                        className="w-full font-medium text-slate-700 bg-transparent outline-none focus:bg-white rounded px-2 py-1 border border-transparent focus:border-orange-500 mb-3"
-                        aria-label="摘要"
-                      />
-                      <div className="grid grid-cols-2 gap-2 mb-3">
-                        <div>
-                          <label className="text-xs text-slate-500 block mb-1">勘定科目</label>
+
+                      {/* Card Body */}
+                      <div className="p-4 space-y-4">
+                        {/* 摘要・金額 */}
+                        <div className="flex items-start justify-between gap-3">
                           <input
-                            list={`kamoku-list-mobile-${t.id}`}
-                            value={t.kamoku || ''}
-                            placeholder={t.amount < 0 ? '仮払金' : '仮受金'}
-                            onChange={e => updateTransaction(t.id, 'kamoku', e.target.value)}
-                            className={`w-full bg-white px-2 py-2 rounded-lg border border-slate-300 outline-none focus:border-orange-500 text-sm font-medium ${t.amount < 0 ? 'text-red-600' : 'text-blue-600'}`}
+                            value={t.description}
+                            onChange={e => updateTransaction(t.id, 'description', e.target.value)}
+                            title={t.description}
+                            className="flex-1 font-semibold text-slate-800 bg-transparent outline-none focus:bg-slate-50 rounded px-2 py-2 border border-transparent focus:border-orange-500 text-base min-h-[44px]"
+                            aria-label="摘要"
                           />
-                          <datalist id={`kamoku-list-mobile-${t.id}`}>
-                            {availableKamokuList.map(name => (
-                              <option key={name} value={name} />
-                            ))}
-                          </datalist>
-                        </div>
-                        <div>
-                          <label className="text-xs text-slate-500 block mb-1">補助科目</label>
                           <input
-                            list={`subkamoku-list-mobile-${t.id}`}
-                            value={t.subKamoku || ''}
-                            placeholder="-"
-                            onChange={e => updateTransaction(t.id, 'subKamoku', e.target.value)}
-                            className="w-full bg-white px-2 py-2 rounded-lg border border-slate-300 outline-none focus:border-orange-500 text-sm"
+                            type="number"
+                            value={t.amount}
+                            onChange={e => updateTransaction(t.id, 'amount', parseFloat(e.target.value) || 0)}
+                            className={`text-right bg-slate-50 px-3 py-2 outline-none focus:bg-white rounded-lg border border-slate-200 focus:border-orange-500 font-bold text-xl w-36 min-h-[44px] ${t.amount < 0 ? UI_COLORS.expense.text : UI_COLORS.income.text}`}
+                            aria-label="金額"
                           />
-                          <datalist id={`subkamoku-list-mobile-${t.id}`}>
-                            {getSubAccountsForKamoku(t.kamoku || '').map(sub => (
-                              <option key={sub} value={sub} />
-                            ))}
-                          </datalist>
                         </div>
-                      </div>
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-                        <span className="text-xs text-slate-500">金額 (税込)</span>
-                        <input
-                          type="number"
-                          value={t.amount}
-                          onChange={e => updateTransaction(t.id, 'amount', parseFloat(e.target.value) || 0)}
-                          className={`text-right bg-transparent px-2 py-1 outline-none focus:bg-white rounded border border-transparent focus:border-orange-500 font-semibold text-lg w-32 ${t.amount < 0 ? 'text-red-600' : 'text-blue-600'}`}
-                          aria-label="金額"
-                        />
-                      </div>
-                      {/* インボイス区分 */}
-                      <div className="pt-2 mt-2 border-t border-slate-200">
-                        <label className="text-xs text-slate-500 block mb-1">インボイス区分</label>
-                        <select
-                          value={t.invoiceNumber || ''}
-                          onChange={e => updateTransaction(t.id, 'invoiceNumber', e.target.value)}
-                          className="w-full bg-white px-2 py-2 rounded-lg border border-slate-300 outline-none focus:border-orange-500 text-xs"
-                        >
-                          <option value="">未選択</option>
-                          <option value="適格">適格</option>
-                          <option value="非適格">非適格</option>
-                        </select>
-                      </div>
-                      {/* 税区分 */}
-                      <div className="pt-2 mt-2 border-t border-slate-200">
-                        <label className="text-xs text-slate-500 block mb-1">税区分</label>
-                        <select
-                          value={t.taxCategory || ''}
-                          onChange={e => updateTransaction(t.id, 'taxCategory', e.target.value)}
-                          className="w-full bg-white px-2 py-2 rounded-lg border border-slate-300 outline-none focus:border-orange-500 text-xs"
-                        >
-                          {allTaxCategories.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                          ))}
-                        </select>
+
+                        {/* 勘定科目 */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-xs font-medium text-slate-500 mb-1.5 block flex items-center gap-1">
+                              <FolderOpen className="w-3 h-3" /> 勘定科目
+                            </label>
+                            <input
+                              list={`kamoku-list-mobile-${t.id}`}
+                              value={t.kamoku || ''}
+                              placeholder={t.amount < 0 ? '仮払金' : '仮受金'}
+                              onChange={e => updateTransaction(t.id, 'kamoku', e.target.value)}
+                              className={`w-full bg-white px-3 py-2.5 rounded-lg border border-slate-300 outline-none focus:border-orange-500 text-sm font-semibold min-h-[44px] ${t.amount < 0 ? UI_COLORS.expense.text : UI_COLORS.income.text}`}
+                            />
+                            <datalist id={`kamoku-list-mobile-${t.id}`}>
+                              {availableKamokuList.map(name => (
+                                <option key={name} value={name} />
+                              ))}
+                            </datalist>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-slate-500 mb-1.5 block flex items-center gap-1">
+                              <Tag className="w-3 h-3" /> 補助科目
+                            </label>
+                            <input
+                              list={`subkamoku-list-mobile-${t.id}`}
+                              value={t.subKamoku || ''}
+                              placeholder="-"
+                              onChange={e => updateTransaction(t.id, 'subKamoku', e.target.value)}
+                              className="w-full bg-white px-3 py-2.5 rounded-lg border border-slate-300 outline-none focus:border-orange-500 text-sm min-h-[44px]"
+                            />
+                            <datalist id={`subkamoku-list-mobile-${t.id}`}>
+                              {getSubAccountsForKamoku(t.kamoku || '').map(sub => (
+                                <option key={sub} value={sub} />
+                              ))}
+                            </datalist>
+                          </div>
+                        </div>
+
+                        {/* インボイス・税区分 */}
+                        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+                          <div>
+                            <label className="text-xs font-medium text-slate-500 mb-1.5 block flex items-center gap-1">
+                              <FileCheck className="w-3 h-3" /> インボイス
+                            </label>
+                            <select
+                              value={t.invoiceNumber || ''}
+                              onChange={e => updateTransaction(t.id, 'invoiceNumber', e.target.value)}
+                              className="w-full bg-white px-3 py-2.5 rounded-lg border border-slate-300 outline-none focus:border-orange-500 text-sm min-h-[44px]"
+                            >
+                              <option value="">未選択</option>
+                              <option value="適格">適格</option>
+                              <option value="非適格">非適格</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-slate-500 mb-1.5 block flex items-center gap-1">
+                              <Receipt className="w-3 h-3" /> 税区分
+                            </label>
+                            <select
+                              value={t.taxCategory || ''}
+                              onChange={e => updateTransaction(t.id, 'taxCategory', e.target.value)}
+                              className="w-full bg-white px-3 py-2.5 rounded-lg border border-slate-300 outline-none focus:border-orange-500 text-sm min-h-[44px]"
+                            >
+                              {allTaxCategories.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* 学習済みマーク */}
+                        {learningRules[t.description] && learningRules[t.description].kamoku === t.kamoku && (
+                          <div className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg">
+                            <GraduationCap className="w-4 h-4" />
+                            <span>この摘要は学習済みです</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1359,30 +1719,94 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
                 /* Desktop Table Layout */
                 <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-slate-50 text-slate-600 text-xs font-medium uppercase sticky top-0 z-10">
+                    <thead className={`${UI_COLORS.table.headerSticky} text-xs`}>
                       <tr>
-                        <th className="px-2 py-3 text-center w-12">切替</th>
-                        <th className="px-4 py-3 text-left min-w-[140px]">取引日</th>
-                        <th className="px-4 py-3 text-left min-w-[200px]">摘要</th>
-                        <th className="px-4 py-3 text-left min-w-[140px]">相手勘定科目</th>
-                        <th className="px-4 py-3 text-left min-w-[120px]">相手補助科目</th>
-                        <th className="px-4 py-3 text-right min-w-[130px]">金額 (税込)</th>
-                        <th className="px-4 py-3 text-left min-w-[100px]">インボイス</th>
-                        <th className="px-4 py-3 text-left min-w-[140px]">税区分</th>
+                        <th className="px-2 py-3 text-center w-14">
+                          <span className="flex items-center justify-center gap-1">
+                            <ArrowUpDown className="w-3 h-3" />
+                            <span className="hidden lg:inline">収/支</span>
+                          </span>
+                        </th>
+                        <th className="px-4 py-3 text-left min-w-[140px]">
+                          <span className="flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-orange-600" />
+                            取引日
+                          </span>
+                        </th>
+                        <th className="px-4 py-3 text-left min-w-[200px]">
+                          <span className="flex items-center gap-1.5">
+                            <FileText className="w-3.5 h-3.5 text-orange-600" />
+                            摘要
+                          </span>
+                        </th>
+                        <th className="px-4 py-3 text-left min-w-[140px]">
+                          <span className="flex items-center gap-1.5">
+                            <FolderOpen className="w-3.5 h-3.5 text-orange-600" />
+                            相手勘定科目
+                          </span>
+                        </th>
+                        <th className="px-4 py-3 text-left min-w-[120px]">
+                          <span className="flex items-center gap-1.5">
+                            <Tag className="w-3.5 h-3.5 text-orange-600" />
+                            補助科目
+                          </span>
+                        </th>
+                        <th className="px-4 py-3 text-right min-w-[130px]">
+                          <span className="flex items-center justify-end gap-1.5">
+                            <CircleDollarSign className="w-3.5 h-3.5 text-orange-600" />
+                            金額 (税込)
+                          </span>
+                        </th>
+                        <th className="px-4 py-3 text-left min-w-[100px]">
+                          <span className="flex items-center gap-1.5">
+                            <FileCheck className="w-3.5 h-3.5 text-orange-600" />
+                            インボイス
+                          </span>
+                        </th>
+                        <th className="px-4 py-3 text-left min-w-[140px]">
+                          <span className="flex items-center gap-1.5">
+                            <Receipt className="w-3.5 h-3.5 text-orange-600" />
+                            税区分
+                          </span>
+                        </th>
                         <th className="px-4 py-3 w-12"></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {filteredTransactions.map(t => (
-                        <tr key={t.id} className={`transition-colors ${t.toggled ? 'bg-yellow-50 hover:bg-yellow-100' : 'hover:bg-slate-50'}`}>
+                        <tr key={t.id} className={`transition-colors ${selectedTransactionIds.has(t.id) ? 'bg-orange-50' : t.toggled ? UI_COLORS.table.rowToggledHover : UI_COLORS.table.rowHover}`}>
                           <td className="p-2 text-center">
-                            <button
-                              onClick={() => toggleTransactionSign(t.id)}
-                              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors"
-                              aria-label="収支を切り替え"
-                            >
-                              <ArrowUpDown className="w-4 h-4" />
-                            </button>
+                            {isBatchEditMode ? (
+                              <button
+                                onClick={() => toggleTransactionSelection(t.id)}
+                                className={`p-2 rounded-lg transition-all ${
+                                  selectedTransactionIds.has(t.id)
+                                    ? 'bg-orange-600 text-white'
+                                    : 'bg-slate-100 text-slate-400 hover:bg-orange-100 hover:text-orange-600'
+                                }`}
+                                aria-label={selectedTransactionIds.has(t.id) ? '選択解除' : '選択'}
+                              >
+                                {selectedTransactionIds.has(t.id) ? (
+                                  <CheckSquare className="w-4 h-4" />
+                                ) : (
+                                  <Square className="w-4 h-4" />
+                                )}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => toggleTransactionSign(t.id)}
+                                className={`inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition-all ${
+                                  t.amount < 0
+                                    ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
+                                    : 'bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200'
+                                }`}
+                                aria-label="収支を切り替え"
+                                title={t.amount < 0 ? '支払（クリックで入金に切替）' : '入金（クリックで支払に切替）'}
+                              >
+                                <ArrowUpDown className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">{t.amount < 0 ? '支' : '収'}</span>
+                              </button>
+                            )}
                           </td>
                           <td className="p-3">
                             <input
@@ -1408,7 +1832,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
                                 value={t.kamoku || ''}
                                 placeholder={t.amount < 0 ? '仮払金' : '仮受金'}
                                 onChange={e => updateTransaction(t.id, 'kamoku', e.target.value)}
-                                className={`w-full bg-transparent px-2 py-1 outline-none focus:bg-white rounded border border-transparent focus:border-orange-500 font-medium ${t.amount < 0 ? 'text-red-600' : 'text-blue-600'}`}
+                                className={`w-full bg-transparent px-2 py-1 outline-none focus:bg-white rounded border border-transparent focus:border-orange-500 font-semibold ${t.amount < 0 ? UI_COLORS.expense.text : UI_COLORS.income.text}`}
                                 aria-label="相手勘定科目"
                               />
                               <datalist id={`kamoku-list-${t.id}`}>
@@ -1417,7 +1841,9 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
                                 ))}
                               </datalist>
                               {learningRules[t.description] && learningRules[t.description].kamoku === t.kamoku && (
-                                <Save className="absolute right-6 top-1/2 -translate-y-1/2 w-3 h-3 text-blue-500" aria-label="学習済み" />
+                                <span className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 px-1 py-0.5 rounded bg-emerald-50" title="学習済み">
+                                  <GraduationCap className={`w-3 h-3 ${UI_COLORS.learned.icon}`} />
+                                </span>
                               )}
                             </div>
                           </td>
@@ -1441,7 +1867,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
                               type="number"
                               value={t.amount}
                               onChange={e => updateTransaction(t.id, 'amount', parseFloat(e.target.value) || 0)}
-                              className={`w-full text-right bg-transparent px-2 py-1 outline-none focus:bg-white rounded border border-transparent focus:border-orange-500 font-semibold ${t.amount < 0 ? 'text-red-600' : 'text-blue-600'}`}
+                              className={`w-full text-right bg-transparent px-2 py-1 outline-none focus:bg-white rounded border border-transparent focus:border-orange-500 font-bold text-base ${t.amount < 0 ? UI_COLORS.expense.text : UI_COLORS.income.text}`}
                               aria-label="金額"
                             />
                           </td>
@@ -1472,7 +1898,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
                           <td className="p-3 text-center">
                             <button
                               onClick={() => deleteTransaction(t.id)}
-                              className="text-slate-400 hover:text-red-500"
+                              className="text-slate-400 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-300 focus:ring-offset-1 rounded p-1 -m-1 transition-colors"
                               aria-label="取引を削除"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -1492,7 +1918,11 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
         {history.length > 0 && (
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-slate-700 flex items-center gap-2"><History className="w-5 h-5 text-orange-600" />出力履歴（ストックデータ）</h2>
+              <h2 className="text-base font-semibold text-slate-700 flex items-center gap-2">
+                <History className="w-5 h-5 text-orange-600" />
+                出力履歴（ストックデータ）
+                <HelpTip text="証憑保存した仕訳データの一覧です。「確認」で再度編集・CSV出力ができます。" />
+              </h2>
               <div className="flex gap-2">
                 {isSelectionMode ? (
                   <>
@@ -1536,7 +1966,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
       {isSaveModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="save-modal-title">
           <div className="bg-white w-full max-w-sm rounded-xl p-6 shadow-xl animate-bounce-in">
-            <h3 id="save-modal-title" className="text-lg font-semibold text-slate-700 mb-2 flex items-center gap-2"><BookmarkPlus className="text-orange-600" />ストック保存</h3>
+            <h3 id="save-modal-title" className="text-lg font-semibold text-slate-700 mb-2 flex items-center gap-2"><BookmarkPlus className="text-orange-600" />証憑保存</h3>
             <p className="text-sm text-slate-500 mb-5">後から確認しやすい名前を付けてください。</p>
             <input
               autoFocus
@@ -1604,6 +2034,12 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({ geminiApiKey, geminiMode
         .animate-bounce-in { animation: bounce-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         .animate-fade-in { animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes progress {
+          0% { width: 0%; }
+          50% { width: 70%; }
+          100% { width: 100%; }
+        }
+        .animate-progress { animation: progress 2s ease-in-out infinite; }
       `}</style>
     </div>
   );

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Receipt, Settings, Lightbulb } from 'lucide-react';
+import { Receipt, Settings, Lightbulb, Building2 } from 'lucide-react';
 import { ScannerTab } from './components/ScannerTab';
 import { MasterTab } from './components/MasterTab';
-import { AppTab, AccountMasterConfig, AccountMasterMap, AccountWithSubAccounts } from './types';
+import { CompanyMasterTab } from './components/CompanyMasterTab';
+import { AppTab, AccountMasterConfig, AccountMasterMap, AccountWithSubAccounts, LearningRulesMap } from './types';
 import { GeminiModelId } from './services/geminiService';
 import { DEFAULT_ACCOUNTS } from './constants';
 
@@ -12,6 +13,7 @@ const STORAGE_KEY_GEMINI_MODEL = 'kakeibo_ai_gemini_model';
 const STORAGE_KEY_CUSTOM_TAX_CATEGORIES = 'kakeibo_ai_custom_tax_categories';
 const STORAGE_KEY_CLIENTS = 'kakeibo_ai_clients';
 const STORAGE_PREFIX_ACCOUNT_MASTER = 'kakeibo_ai_accounts_';
+const STORAGE_PREFIX_RULES = 'kakeibo_ai_rules_';
 
 // 旧形式の型定義（マイグレーション用）
 type OldAccountMasterConfig = {
@@ -56,6 +58,7 @@ const App: React.FC = () => {
   const [customTaxCategories, setCustomTaxCategories] = useState<string[]>([]);
   const [clients, setClients] = useState<string[]>(['株式会社サンプル']);
   const [accountMasters, setAccountMasters] = useState<AccountMasterMap>({});
+  const [allLearningRules, setAllLearningRules] = useState<Record<string, LearningRulesMap>>({});
 
   // Load settings from localStorage on mount
   useEffect(() => {
@@ -139,6 +142,28 @@ const App: React.FC = () => {
             }
           });
           setAccountMasters(masters);
+
+          // Load learning rules for each client
+          const rules: Record<string, LearningRulesMap> = {};
+          parsed.forEach((client: string) => {
+            const savedRules = localStorage.getItem(`${STORAGE_PREFIX_RULES}${client}`);
+            if (savedRules) {
+              try {
+                const parsedRules = JSON.parse(savedRules);
+                // マイグレーション: 古い形式(string)から新形式({kamoku, subKamoku})に変換
+                const migratedRules: LearningRulesMap = {};
+                Object.entries(parsedRules).forEach(([key, val]) => {
+                  migratedRules[key] = typeof val === 'string'
+                    ? { kamoku: val, subKamoku: '' }
+                    : val as { kamoku: string; subKamoku: string };
+                });
+                rules[client] = migratedRules;
+              } catch (e) {
+                console.error(`Failed to parse rules for ${client}:`, e);
+              }
+            }
+          });
+          setAllLearningRules(rules);
         }
       } catch (e) {
         console.error('Failed to parse clients:', e);
@@ -194,8 +219,20 @@ const App: React.FC = () => {
       const { [clientName]: _, ...rest } = prev;
       return rest;
     });
+    // learningRulesから削除
+    setAllLearningRules(prev => {
+      const { [clientName]: _, ...rest } = prev;
+      return rest;
+    });
     // localStorageからも削除
     localStorage.removeItem(`${STORAGE_PREFIX_ACCOUNT_MASTER}${clientName}`);
+    localStorage.removeItem(`${STORAGE_PREFIX_RULES}${clientName}`);
+  };
+
+  // Handler for learning rules changes (per company)
+  const handleLearningRulesChange = (clientName: string, rules: LearningRulesMap) => {
+    setAllLearningRules(prev => ({ ...prev, [clientName]: rules }));
+    localStorage.setItem(`${STORAGE_PREFIX_RULES}${clientName}`, JSON.stringify(rules));
   };
 
   return (
@@ -239,6 +276,19 @@ const App: React.FC = () => {
             </button>
             <button
               role="tab"
+              aria-selected={activeTab === AppTab.COMPANY_MASTER}
+              onClick={() => setActiveTab(AppTab.COMPANY_MASTER)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                activeTab === AppTab.COMPANY_MASTER
+                  ? 'bg-orange-600 text-white'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              <span className="hidden sm:inline">会社別マスタ</span>
+            </button>
+            <button
+              role="tab"
               aria-selected={activeTab === AppTab.MASTER}
               onClick={() => setActiveTab(AppTab.MASTER)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
@@ -254,7 +304,7 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Content - Both tabs are always rendered but hidden via CSS to preserve state */}
+      {/* Main Content - All tabs are always rendered but hidden via CSS to preserve state */}
       <main className="flex-1 px-4 sm:px-6 py-6 overflow-y-auto">
         <div className={activeTab === AppTab.SCANNER ? '' : 'hidden'}>
           <ScannerTab
@@ -264,6 +314,17 @@ const App: React.FC = () => {
             accountMasters={accountMasters}
             onClientAdd={handleClientAdd}
             onClientDelete={handleClientDelete}
+            allLearningRules={allLearningRules}
+            onLearningRulesChange={handleLearningRulesChange}
+          />
+        </div>
+        <div className={activeTab === AppTab.COMPANY_MASTER ? '' : 'hidden'}>
+          <CompanyMasterTab
+            clients={clients}
+            accountMasters={accountMasters}
+            onAccountMasterChange={handleAccountMasterChange}
+            allLearningRules={allLearningRules}
+            onLearningRulesChange={handleLearningRulesChange}
           />
         </div>
         <div className={activeTab === AppTab.MASTER ? '' : 'hidden'}>

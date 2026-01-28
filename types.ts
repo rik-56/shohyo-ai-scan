@@ -49,5 +49,10 @@ export interface HistoryBatch {
 
 export enum AppTab {
   SCANNER = 'scanner',
+  COMPANY_MASTER = 'company_master',
   MASTER = 'master'
 }
+
+// 学習ルールの型
+export type LearningRule = { kamoku: string; subKamoku: string };
+export type LearningRulesMap = Record<string, LearningRule>;
