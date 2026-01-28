@@ -20,13 +20,19 @@ scan/
 ├── App.tsx                 # メインアプリ（タブ管理、設定状態）
 ├── index.html              # HTMLエントリー
 ├── index.tsx               # Reactエントリー
-├── types.ts                # 型定義（Transaction, HistoryBatch, AppTab）
+├── types.ts                # 型定義（Transaction, HistoryBatch, AppTab, PageTransactions, ScanResult）
 ├── components/
-│   ├── ScannerTab.tsx      # スキャン機能（メイン画面）
+│   ├── scanner/
+│   │   ├── ScannerTab.tsx      # スキャン機能（メイン画面）
+│   │   ├── FileUploadSection.tsx  # ファイルアップロード・解析UI
+│   │   ├── TransactionTable.tsx   # 取引一覧テーブル
+│   │   ├── HistorySection.tsx     # 履歴管理
+│   │   └── ...
 │   ├── MasterTab.tsx       # 設定タブ
 │   └── Toast.tsx           # 通知コンポーネント
 ├── services/
-│   └── geminiService.ts    # Gemini API連携、モデル定義
+│   ├── geminiService.ts    # Gemini API連携、モデル定義、マルチページ処理
+│   └── pdfUtils.ts         # PDF分割・画像化ユーティリティ
 └── docs/
     ├── 使い方ガイド.md
     └── 使い方ガイド.html
@@ -78,6 +84,14 @@ scan/
 ### UI表示ルール
 - 相手勘定科目の色: 支払（負の金額）= 赤、入金（正の金額）= 青
 - 金額の色: 支払 = 赤、入金 = 青
+
+### 大容量PDF対応（複数ページ分割スキャン）
+- 複数ページのPDFは自動的にページごとに分割して解析
+- ページタブで各ページの結果を切り替え表示
+- 「全ページ」タブで統合表示
+- 解析中は進捗バーでページ処理状況を表示
+- 各ページで最大3回リトライ（レート制限・ネットワークエラー時）
+- 一部ページがエラーでも他ページは正常に処理続行
 
 ## データ型
 

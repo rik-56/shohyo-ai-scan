@@ -37,11 +37,12 @@ export const MasterTab: React.FC<MasterTabProps> = ({
   // エクスポート機能
   const handleExport = () => {
     // LocalStorageからデータを収集
+    // セキュリティ上の理由からAPIキーは除外
     const exportData = {
       version: 1,
       exportedAt: new Date().toISOString(),
       data: {
-        geminiApiKey: geminiApiKey,
+        // geminiApiKey は除外（セキュリティ上の理由）
         geminiModel: geminiModel,
         customTaxCategories: customTaxCategories,
         clients: clients,
@@ -396,12 +397,12 @@ export const MasterTab: React.FC<MasterTabProps> = ({
           <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3">
             <p className="font-medium mb-1">エクスポートされるデータ:</p>
             <ul className="list-disc list-inside space-y-0.5">
-              <li>Gemini APIキー</li>
               <li>AIモデル設定</li>
               <li>カスタム税区分</li>
               <li>クライアント一覧</li>
               <li>勘定科目マスタ（会社別）</li>
             </ul>
+            <p className="mt-2 text-orange-600">※ Gemini APIキーはセキュリティ上の理由から除外されます</p>
           </div>
         </div>
       </div>

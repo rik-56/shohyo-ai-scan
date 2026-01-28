@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, AlertCircle, X, Undo2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle, AlertTriangle, X, Undo2 } from 'lucide-react';
+
+export type ToastType = 'success' | 'error' | 'warning';
 
 export interface ToastProps {
   message: string;
-  type: 'success' | 'error';
+  type: ToastType;
   onClose: () => void;
   duration?: number;
   action?: {
@@ -41,8 +43,8 @@ export const Toast: React.FC<ToastProps> = ({ message, type, onClose, duration =
     }
   };
 
-  const bgColor = type === 'success' ? 'bg-green-600' : 'bg-red-600';
-  const Icon = type === 'success' ? CheckCircle2 : AlertCircle;
+  const bgColor = type === 'success' ? 'bg-green-600' : type === 'warning' ? 'bg-amber-500' : 'bg-red-600';
+  const Icon = type === 'success' ? CheckCircle2 : type === 'warning' ? AlertTriangle : AlertCircle;
 
   return (
     <div
@@ -80,7 +82,7 @@ export const Toast: React.FC<ToastProps> = ({ message, type, onClose, duration =
 export interface ToastItem {
   id: string;
   message: string;
-  type: 'success' | 'error';
+  type: ToastType;
   action?: {
     label: string;
     onClick: () => void;
@@ -117,7 +119,7 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemove
 export const useToast = () => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
-  const showToast = (message: string, type: 'success' | 'error', action?: { label: string; onClick: () => void }) => {
+  const showToast = (message: string, type: ToastType, action?: { label: string; onClick: () => void }) => {
     const id = `toast-${Date.now()}`;
     setToasts(prev => [...prev, { id, message, type, action }]);
   };

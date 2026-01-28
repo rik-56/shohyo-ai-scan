@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Receipt, Settings, Lightbulb, Building2 } from 'lucide-react';
-import { ScannerTab } from './components/ScannerTab';
+import { ScannerTab } from './components/scanner/ScannerTab';
 import { MasterTab } from './components/MasterTab';
 import { CompanyMasterTab } from './components/CompanyMasterTab';
 import { AppTab, AccountMasterConfig, AccountMasterMap, AccountWithSubAccounts, LearningRulesMap } from './types';

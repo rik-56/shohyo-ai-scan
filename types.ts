@@ -55,3 +55,25 @@ export enum AppTab {
 // 学習ルールの型
 export type LearningRule = { kamoku: string; subKamoku: string };
 export type LearningRulesMap = Record<string, LearningRule>;
+
+// ページ単位のスキャン結果
+export interface PageTransactions {
+  pageNumber: number;
+  transactions: Transaction[];
+  error?: string;
+}
+
+// スキャン結果（単一ページ or 複数ページ）
+export interface ScanResult {
+  isMultiPage: boolean;
+  pages: PageTransactions[];  // 複数ページの場合
+  transactions: Transaction[]; // 単一ページの場合（互換性用）
+}
+
+// スキャン進捗情報
+export interface ScanProgress {
+  current: number;
+  total: number;
+  status: 'extracting' | 'analyzing' | 'complete' | 'error';
+  message?: string;
+}

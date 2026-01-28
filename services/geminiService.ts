@@ -1,7 +1,8 @@
-import { Transaction } from "../types";
+import { Transaction, PageTransactions } from "../types";
+import { PageImage, extractPdfPages, getPdfPageCount } from "./pdfUtils";
 
 // Error codes for manual mode and API mode
-export type AnalysisErrorCode = 'INVALID_RESPONSE' | 'API_KEY_INVALID' | 'RATE_LIMITED' | 'API_ERROR';
+export type AnalysisErrorCode = 'INVALID_RESPONSE' | 'API_KEY_INVALID' | 'RATE_LIMITED' | 'API_ERROR' | 'FILE_TOO_LARGE' | 'NETWORK_ERROR';
 
 export class AnalysisError extends Error {
   code: AnalysisErrorCode;
@@ -17,7 +18,22 @@ export const errorMessages: Record<AnalysisErrorCode, string> = {
   'INVALID_RESPONSE': '解析結果の形式が不正です。再試行してください。',
   'API_KEY_INVALID': 'APIキーが無効です。設定を確認してください。',
   'RATE_LIMITED': 'APIのレート制限に達しました。しばらく待ってから再試行してください。',
-  'API_ERROR': 'API呼び出しエラーが発生しました。'
+  'API_ERROR': 'API呼び出しエラーが発生しました。',
+  'FILE_TOO_LARGE': 'ファイルサイズが大きすぎます。50MB以下のファイルを使用してください。',
+  'NETWORK_ERROR': 'ネットワークエラーが発生しました。インターネット接続を確認してください。'
+};
+
+// Maximum file size in bytes (50MB)
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+
+/**
+ * Estimates the original file size from base64 encoded data.
+ * Base64 encoding increases size by approximately 33%.
+ */
+export const estimateFileSizeFromBase64 = (base64Data: string): number => {
+  // Remove padding and calculate
+  const padding = (base64Data.match(/=/g) || []).length;
+  return Math.floor((base64Data.length * 3) / 4) - padding;
 };
 
 // Helper to normalize date to YYYY/MM/DD
@@ -47,30 +63,100 @@ const normalizeDate = (dateStr: string): string => {
 export const getAnalysisPrompt = (autoKamoku: boolean = false): string => {
   const kamokuInstruction = autoKamoku
     ? `4. **Account Item (勘定科目) - AI推測モード**:
-   - Guess the most appropriate account item based on the description and transaction type.
-   - Common account items for expenses:
-     - 旅費交通費: Transportation, taxi, train, airplane, parking
-     - 消耗品費: Office supplies, small items
-     - 会議費: Business meetings, coffee/meals with clients (ONLY if tax-excluded amount ≤ 20,000 yen)
-     - 接待交際費: Entertainment expenses. Use this for:
-       * Meals/dining with clients: if tax-excluded amount > 20,000 yen
-       * Gifts/souvenirs (手土産/お土産/贈答品/ギフト/菓子折り): if amount ≥ 3,000 yen
-     - 通信費: Phone, internet, postage
-     - 水道光熱費: Utilities (water, electricity, gas)
-     - 地代家賃: Rent
-     - 租税公課: Taxes, stamps, government fees
-     - 保険料: Insurance
-     - 広告宣伝費: Advertising
-     - 支払手数料: Service fees, bank fees
-     - 福利厚生費: Employee welfare
-     - 新聞図書費: Books, newspapers, subscriptions
-     - 修繕費: Repairs, maintenance
-     - 外注費: Outsourcing, subcontracting
-   - Common account items for income:
-     - 売上高: Sales revenue
-     - 受取利息: Interest income
-     - 雑収入: Miscellaneous income
-   - **CRITICAL**: If you cannot clearly determine the account item, ALWAYS use "仮払金" for expenses and "仮受金" for income. Do NOT guess or use ambiguous categories. 雑費 is STRICTLY PROHIBITED.`
+   - 店舗名・サービス名から最も適切な勘定科目を推測してください。
+   - 以下のキーワードと金額ルールを参考に判定してください。
+
+   **【経費の勘定科目と判定キーワード】**
+
+   **旅費交通費** - 交通・移動関連:
+     - 鉄道: JR, 新幹線, 私鉄, 地下鉄, メトロ, 駅, PASMO, Suica, ICOCA, manaca, TOICA
+     - タクシー: タクシー, Uber, DiDi, GO, S.RIDE, 第一交通, 日本交通, MKタクシー
+     - 航空: ANA, JAL, 航空券, 空港, ピーチ, ジェットスター, スカイマーク
+     - 車両: 駐車場, コインパーキング, 高速道路, ETC, 有料道路
+     - ガソリン: ENEOS, 出光, コスモ石油, 昭和シェル, キグナス, 宇佐美, ガソリン
+
+   **消耗品費** - 日用品・事務用品:
+     - コンビニ: セブンイレブン, ローソン, ファミリーマート, ミニストップ, デイリーヤマザキ, セイコーマート, NewDays
+     - 100円ショップ: ダイソー, セリア, キャンドゥ, 100均, ワッツ
+     - 文具・事務用品: 文房具, コクヨ, アスクル, カウネット, オフィスデポ
+     - EC・家電: Amazon, 楽天, ヨドバシ, ビックカメラ, ケーズデンキ, エディオン, ジョーシン, コジマ
+     - ホームセンター: カインズ, コーナン, DCM, ビバホーム, ロイヤル, ナフコ
+     - ドラッグストア: マツキヨ, ウエルシア, ツルハ, サンドラッグ, スギ薬局, ココカラ
+
+   **会議費** - 打ち合わせ・軽食 (金額 ≤5,000円の飲食):
+     - カフェ: スターバックス, ドトール, タリーズ, コメダ, 珈琲館, ベローチェ, サンマルク, プロント, 喫茶店, カフェ
+     - ファミレス: ガスト, サイゼリヤ, デニーズ, ジョナサン, ロイヤルホスト, ジョイフル, ココス
+     - ファストフード: マクドナルド, モスバーガー, ケンタッキー, 吉野家, 松屋, すき家, なか卯, CoCo壱
+
+   **接待交際費** - 接待・贈答 (金額 >5,000円の飲食、またはギフト):
+     - 居酒屋: 居酒屋, 酒場, 焼鳥, 串カツ, 鳥貴族, 和民, 魚民, 塚田農場, 八剣伝
+     - 高級飲食: 焼肉, 寿司, 鮨, 料亭, 割烹, 懐石, フレンチ, イタリアン, 中華料理, ステーキ
+     - バー・クラブ: バー, Bar, スナック, クラブ, ラウンジ
+     - 贈答品: お中元, お歳暮, 贈答品, ギフト, 手土産, お土産, 菓子折り, 花束, 胡蝶蘭
+
+   **通信費** - 通信・郵送:
+     - 通信: NTT, ドコモ, au, KDDI, ソフトバンク, 楽天モバイル, ワイモバイル, UQ, mineo
+     - インターネット: フレッツ, 光回線, プロバイダ, OCN, So-net, BIGLOBE
+     - 郵送: 郵便局, 日本郵便, レターパック, ゆうパック, 切手, はがき
+     - 宅配: ヤマト運輸, 佐川急便, 宅急便, クロネコ
+
+   **水道光熱費** - 公共料金:
+     - 電力: 東京電力, 関西電力, 中部電力, 東北電力, 九州電力, 北海道電力, 電気代
+     - ガス: 東京ガス, 大阪ガス, 東邦ガス, 西部ガス, ガス代
+     - 水道: 水道局, 水道代
+
+   **支払手数料** - 金融・決済手数料:
+     - 銀行: 振込手数料, ATM手数料, 銀行手数料, 送金手数料
+     - 決済: PayPay, LINE Pay, 楽天ペイ, メルペイ, d払い, au PAY
+     - カード: クレジットカード年会費, カード手数料
+
+   **新聞図書費** - 書籍・新聞:
+     - 書店: 紀伊國屋, 丸善, ジュンク堂, TSUTAYA, 三省堂, 有隣堂
+     - 電子書籍: Kindle, 楽天Kobo, honto
+     - 新聞: 日経, 読売, 朝日, 毎日, 産経, 新聞
+
+   **福利厚生費** - 従業員福利:
+     - フィットネス: スポーツジム, フィットネス, ティップネス, コナミ, ルネサンス, ゴールドジム
+     - 健康: 健康診断, 人間ドック, 社員食堂
+
+   **広告宣伝費** - 広告・宣伝:
+     - Web広告: Google広告, Facebook広告, Instagram広告, Twitter広告, Yahoo広告, LINE広告
+     - 印刷: チラシ, ポスター, パンフレット, 名刺印刷
+
+   **地代家賃** - 賃貸:
+     - 家賃, 賃料, 共益費, 管理費, 駐車場代（月極）
+
+   **租税公課** - 税金・公的費用:
+     - 印紙, 収入印紙, 登録免許税, 自動車税, 固定資産税
+
+   **保険料** - 保険:
+     - 生命保険, 損害保険, 火災保険, 自動車保険
+
+   **修繕費** - 修理・メンテナンス:
+     - 修理, 修繕, メンテナンス, 点検
+
+   **外注費** - 外部委託:
+     - 外注, 業務委託, 制作費
+
+   **【金額ベースの判定ルール】**
+   - 飲食店で ≤5,000円 → 会議費
+   - 飲食店で >5,000円 → 接待交際費
+   - ギフト・贈答品・手土産 → 接待交際費（金額問わず）
+   - コンビニで ≤1,000円 → 消耗品費（日用品購入と推定）
+   - コンビニで >1,000円 → 会議費（飲食物購入と推定）
+
+   **【収益の勘定科目】**
+   - 売上高: 売上, 売上入金, 代金回収, 請求書入金
+   - 受取利息: 利息, 利子
+   - 雑収入: 還付金, キャッシュバック, ポイント還元
+
+   **【禁止科目】**
+   - 「雑費」「雑支出」「その他」「経費」→ 使用禁止
+
+   **【重要】判定できない場合のフォールバック**:
+   - 経費で判定できない場合 → 必ず「仮払金」を使用
+   - 収益で判定できない場合 → 必ず「仮受金」を使用
+   - 曖昧なカテゴリを推測するよりも、仮払金/仮受金を使用してください。`
     : `4. **Account Item (勘定科目)**:
    - **STRICT RULE**: Return NULL (or empty string) for ALL transactions.
    - Do not attempt to guess the account item (e.g., do not guess "Travel Expense" for a taxi).
@@ -288,6 +374,17 @@ export const analyzeWithGemini = async (
     ? fileData.split(',')[1]
     : fileData;
 
+  // Check file size
+  const estimatedSize = estimateFileSizeFromBase64(base64Data);
+  console.log('[Gemini API] Estimated file size:', (estimatedSize / 1024 / 1024).toFixed(2), 'MB');
+
+  if (estimatedSize > MAX_FILE_SIZE_BYTES) {
+    throw new AnalysisError(
+      'FILE_TOO_LARGE',
+      `ファイルサイズ（${(estimatedSize / 1024 / 1024).toFixed(1)}MB）が大きすぎます。50MB以下のファイルを使用するか、PDFを分割してください。`
+    );
+  }
+
   const prompt = getAnalysisPrompt(autoKamoku);
 
   const requestBody = {
@@ -381,7 +478,205 @@ export const analyzeWithGemini = async (
       throw error;
     }
 
+    // Check for network-related errors
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new AnalysisError(
+        'NETWORK_ERROR',
+        'ネットワークエラーが発生しました。インターネット接続を確認して再試行してください。'
+      );
+    }
+
+    // Check for timeout or abort errors
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new AnalysisError(
+        'NETWORK_ERROR',
+        'リクエストがタイムアウトしました。ネットワーク接続を確認して再試行してください。'
+      );
+    }
+
     // Network or other errors
-    throw new AnalysisError('API_ERROR', `API呼び出しエラー: ${error instanceof Error ? error.message : '不明なエラー'}`);
+    const errorMessage = error instanceof Error ? error.message : '不明なエラー';
+    throw new AnalysisError(
+      'API_ERROR',
+      `API呼び出しエラー: ${errorMessage}。ネットワーク接続を確認して再試行してください。`
+    );
   }
 };
+
+// リトライ設定
+const MAX_RETRIES = 3;
+const RETRY_DELAY_BASE = 2000; // ミリ秒
+
+/**
+ * リトライ可能なエラーかどうか判定
+ */
+const isRetryableError = (error: unknown): boolean => {
+  if (error instanceof AnalysisError) {
+    // レート制限とネットワークエラーはリトライ可能
+    return error.code === 'RATE_LIMITED' || error.code === 'NETWORK_ERROR';
+  }
+  return false;
+};
+
+/**
+ * スリープ関数
+ */
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * 単一ページをリトライ付きで解析
+ */
+const analyzePageWithRetry = async (
+  pageImage: PageImage,
+  apiKey: string,
+  model: GeminiModelId,
+  autoKamoku: boolean
+): Promise<PageTransactions> => {
+  // 画像データが空の場合（抽出失敗）
+  if (!pageImage.dataUrl) {
+    return {
+      pageNumber: pageImage.pageNumber,
+      transactions: [],
+      error: 'ページの抽出に失敗しました'
+    };
+  }
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      console.log(`[Multi-Page] Page ${pageImage.pageNumber}: Attempt ${attempt}/${MAX_RETRIES}`);
+
+      const transactions = await analyzeWithGemini(
+        pageImage.dataUrl,
+        pageImage.mimeType,
+        apiKey,
+        model,
+        autoKamoku
+      );
+
+      console.log(`[Multi-Page] Page ${pageImage.pageNumber}: Success (${transactions.length} transactions)`);
+
+      return {
+        pageNumber: pageImage.pageNumber,
+        transactions
+      };
+    } catch (error) {
+      console.error(`[Multi-Page] Page ${pageImage.pageNumber}: Attempt ${attempt} failed:`, error);
+
+      if (attempt === MAX_RETRIES || !isRetryableError(error)) {
+        return {
+          pageNumber: pageImage.pageNumber,
+          transactions: [],
+          error: error instanceof Error ? error.message : 'エラーが発生しました'
+        };
+      }
+
+      // 指数バックオフでリトライ
+      const delay = RETRY_DELAY_BASE * attempt;
+      console.log(`[Multi-Page] Retrying in ${delay}ms...`);
+      await sleep(delay);
+    }
+  }
+
+  // ここに到達することはないが、TypeScript用
+  return {
+    pageNumber: pageImage.pageNumber,
+    transactions: [],
+    error: 'リトライ上限に達しました'
+  };
+};
+
+/**
+ * 進捗コールバックの型
+ */
+export interface MultiPageProgress {
+  phase: 'extracting' | 'analyzing' | 'complete';
+  currentPage: number;
+  totalPages: number;
+  message?: string;
+}
+
+/**
+ * 複数ページPDFを解析
+ * 各ページを順次API呼び出しし、結果を返す
+ *
+ * @param pdfData - Base64エンコードされたPDFデータ
+ * @param apiKey - Google Gemini API key
+ * @param model - 使用するGeminiモデル
+ * @param autoKamoku - AIが勘定科目を推測するか
+ * @param onProgress - 進捗コールバック
+ * @returns ページごとの結果配列
+ */
+export const analyzeMultiPagePdf = async (
+  pdfData: string,
+  apiKey: string,
+  model: GeminiModelId,
+  autoKamoku: boolean,
+  onProgress?: (progress: MultiPageProgress) => void
+): Promise<PageTransactions[]> => {
+  console.log('[Multi-Page] Starting multi-page PDF analysis...');
+
+  // 1. ページ数を確認
+  const pageCount = await getPdfPageCount(pdfData);
+  console.log(`[Multi-Page] PDF has ${pageCount} pages`);
+
+  // 2. PDFをページ画像に分割
+  onProgress?.({
+    phase: 'extracting',
+    currentPage: 0,
+    totalPages: pageCount,
+    message: 'PDFをページごとに分割中...'
+  });
+
+  const pageImages = await extractPdfPages(pdfData);
+  console.log(`[Multi-Page] Extracted ${pageImages.length} page images`);
+
+  // 3. 各ページを順次解析
+  const results: PageTransactions[] = [];
+
+  for (let i = 0; i < pageImages.length; i++) {
+    const pageImage = pageImages[i];
+
+    onProgress?.({
+      phase: 'analyzing',
+      currentPage: i + 1,
+      totalPages: pageCount,
+      message: `ページ ${i + 1} / ${pageCount} を解析中...`
+    });
+
+    const result = await analyzePageWithRetry(
+      pageImage,
+      apiKey,
+      model,
+      autoKamoku
+    );
+
+    results.push(result);
+  }
+
+  onProgress?.({
+    phase: 'complete',
+    currentPage: pageCount,
+    totalPages: pageCount,
+    message: '解析完了'
+  });
+
+  console.log('[Multi-Page] Analysis complete');
+  return results;
+};
+
+/**
+ * PDFが複数ページかどうか確認
+ */
+export const isPdfMultiPage = async (pdfData: string): Promise<boolean> => {
+  try {
+    const pageCount = await getPdfPageCount(pdfData);
+    return pageCount > 1;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * PDFのページ数を取得（エクスポート）
+ */
+export { getPdfPageCount } from './pdfUtils';
