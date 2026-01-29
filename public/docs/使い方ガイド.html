@@ -50,6 +50,10 @@
     .troubleshoot h4 { color: #dc2626; margin-bottom: 8px; font-size: 14px; }
     .troubleshoot ul { margin-bottom: 0; }
     hr { border: none; border-top: 1px solid #e5e5e5; margin: 30px 0; }
+    .onboarding { background: linear-gradient(135deg, #fff7ed 0%, #fef3c7 100%); border: 1px solid #fed7aa; border-radius: 12px; padding: 20px; margin: 20px 0; }
+    .onboarding h3 { border: none; padding: 0; margin-top: 0; color: #ea580c; }
+    .tab-info { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 15px; margin: 15px 0; }
+    .tab-info h4 { color: #0284c7; margin-top: 0; margin-bottom: 10px; }
     @media print {
       body { padding: 20px; }
       h2 { page-break-after: avoid; }
@@ -70,6 +74,29 @@
 <div class="url-box">
   <strong>アプリURL</strong>
   https://shohyo-ai-scan.vercel.app/
+</div>
+
+<div class="onboarding">
+  <h3>初回起動時のオンボーディング</h3>
+  <p>アプリを初めて開くと、3ステップのガイド画面が表示されます。</p>
+  <table>
+    <tr><th>ステップ</th><th>内容</th></tr>
+    <tr><td>1. 証憑をアップロード</td><td>レシート・領収書・通帳のPDFや画像をアップロード</td></tr>
+    <tr><td>2. AIが自動解析</td><td>Gemini AIが日付・金額・摘要を自動抽出</td></tr>
+    <tr><td>3. CSVでエクスポート</td><td>Money Forward互換のCSVとして出力</td></tr>
+  </table>
+  <div class="tip" style="margin-bottom: 0;">「スキップ」または「始める」をクリックしてメイン画面へ進みます。この画面は初回のみ表示されます。</div>
+</div>
+
+<div class="tab-info">
+  <h4>タブ構成</h4>
+  <p>アプリは3つのタブで構成されています。</p>
+  <table style="margin-bottom: 0;">
+    <tr><th>タブ</th><th>役割</th></tr>
+    <tr><td><strong>スキャン</strong></td><td>証憑のアップロード・AI解析・CSV出力（メイン機能）</td></tr>
+    <tr><td><strong>会社別マスタ</strong></td><td>会社ごとの勘定科目・元帳補助科目・学習ルールの設定</td></tr>
+    <tr><td><strong>設定</strong></td><td>APIキー・AIモデル・税区分・バックアップなどの共通設定</td></tr>
+  </table>
 </div>
 
 <hr>
@@ -155,11 +182,6 @@
 
 <h2>4. 会社別マスタを設定する</h2>
 <p>「会社別マスタ」タブでは、会社ごとの勘定科目・元帳補助科目・学習ルールを設定できます。</p>
-
-<div class="tip">
-  タブ構成が新しくなりました。<br>
-  <strong>スキャン</strong> / <strong>会社別マスタ</strong> / <strong>設定</strong> の3タブ構成です。
-</div>
 
 <h3>元帳補助科目の設定</h3>
 <p>会社ごとに、元帳種別に応じた補助科目を複数登録できます。</p>
@@ -260,6 +282,15 @@
   <li><strong>元帳の種類</strong>を選択する（「現金」「預金」「クレカ」）</li>
 </ol>
 
+<h3>スキャンタブの帳簿設定セクション</h3>
+<p>スキャンタブには以下のセクションがあります。</p>
+<table>
+  <tr><th>セクション</th><th>表示</th><th>説明</th></tr>
+  <tr><td>元帳の種類</td><td>常に表示</td><td>現金/預金/クレカの選択</td></tr>
+  <tr><td>補助科目設定</td><td>常に表示</td><td>元帳種別に応じた補助科目の選択</td></tr>
+  <tr><td>CSV出力時の勘定科目</td><td>クリックで展開</td><td>科目の事前選択（任意）</td></tr>
+</table>
+
 <h3>元帳種別の違い</h3>
 <table>
   <tr><th>種別</th><th>用途</th><th>貸方科目</th><th>税区分</th><th>インボイス</th></tr>
@@ -291,6 +322,14 @@
   <li>PDFファイル（請求書など）</li>
   <li>CSVファイル（銀行明細など）</li>
 </ul>
+
+<h3>PDF処理モード</h3>
+<p>PDFファイルをアップロードすると、処理モードを選択できます。</p>
+<table>
+  <tr><th>モード</th><th>説明</th><th>おすすめ用途</th></tr>
+  <tr><td><strong>一括処理</strong>（デフォルト）</td><td>PDFを一度に解析</td><td>通常のPDF、レート制限を回避したい場合</td></tr>
+  <tr><td>ページ分割</td><td>ページごとに分割して解析</td><td>大容量PDF（通帳など多ページ）</td></tr>
+</table>
 
 <div class="tip">
   レシートは<strong>明るい場所</strong>で撮影し、文字が<strong>はっきり見える</strong>ように撮りましょう。折り目やシワを伸ばしてから撮ると精度が上がります。
@@ -378,6 +417,16 @@
   <li><strong>「保存」</strong>をタップ</li>
 </ol>
 <p>保存した履歴は画面下部の<strong>「出力履歴」</strong>に表示されます。</p>
+
+<h3>履歴の複数選択・一括削除</h3>
+<p>履歴が増えてきたら、「整理する」機能で一括削除できます。</p>
+<ol>
+  <li>出力履歴セクションの<strong>「整理する」</strong>ボタンをタップ</li>
+  <li>削除したい履歴のチェックボックスをタップして選択（複数選択可）</li>
+  <li><strong>「選択した○件を削除」</strong>ボタンをタップ</li>
+  <li>選択した履歴が一括削除されます</li>
+</ol>
+<div class="tip">「キャンセル」をタップすると選択モードを解除できます。</div>
 
 <h3>CSVファイルを出力する</h3>
 <ol>
@@ -475,7 +524,7 @@
 
 <div class="qa">
   <h4>Q. 複数の会社の経理を管理できますか？</h4>
-  <p><strong>A.</strong> はい。画面上部のタブで会社（クライアント）を切り替えられます。「＋」ボタンで新しい会社を追加できます。</p>
+  <p><strong>A.</strong> はい。「会社別マスタ」タブで会社（クライアント）を切り替えられます。「＋」ボタンで新しい会社を追加できます。</p>
 </div>
 
 <div class="qa">
@@ -502,6 +551,7 @@
 
 <h2>更新履歴</h2>
 <ul>
+  <li>2026年1月：オンボーディング画面追加、履歴の複数選択・一括削除機能追加</li>
   <li>2026年1月：大容量PDF対応（出力トークン上限を拡大）</li>
   <li>2026年1月：会社別マスタタブ追加対応</li>
   <li>2025年1月：初版公開</li>
@@ -511,7 +561,7 @@
 
 <p style="text-align: center; color: #999; margin-top: 40px;">
   仕訳アシスタント 使い方ガイド<br>
-  2026年1月版（会社別マスタタブ対応）
+  2026年1月版（オンボーディング・履歴一括削除対応）
 </p>
 
 </body>

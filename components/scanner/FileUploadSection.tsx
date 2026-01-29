@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Upload, Camera, FileText, Trash2, FileClock, Bot, Loader2, Receipt, HelpCircle, FileStack } from 'lucide-react';
 import { MultiPageProgress } from '../../services/geminiService';
 
@@ -71,9 +71,27 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
   bookType
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    if (file) onFileChange(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
     if (file) onFileChange(file);
   };
 
@@ -95,12 +113,25 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
               fileInputRef.current?.click();
             }
           }}
-          className="border-2 border-dashed border-slate-300 rounded-lg p-10 flex flex-col items-center text-slate-400 cursor-pointer hover:bg-slate-50 hover:border-orange-300 transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`border-2 border-dashed rounded-xl p-12 flex flex-col items-center cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${
+            isDragOver
+              ? 'border-orange-500 bg-orange-50 scale-[1.02]'
+              : 'border-slate-300 hover:bg-slate-50 hover:border-orange-300'
+          }`}
           aria-label="ファイルをアップロード"
         >
-          <Upload className="w-10 h-10 mb-4" />
-          <p className="font-medium text-base">クリックしてファイルをアップロード</p>
-          <p className="text-sm mt-2">対応形式: 画像 (JPG, PNG), PDF, CSV</p>
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-colors ${
+            isDragOver ? 'bg-orange-100' : 'bg-slate-100'
+          }`}>
+            <Upload className={`w-8 h-8 ${isDragOver ? 'text-orange-600' : 'text-slate-400'}`} />
+          </div>
+          <p className="font-semibold text-lg text-slate-700">
+            {isDragOver ? 'ここにドロップ' : 'クリックまたはドラッグ&ドロップ'}
+          </p>
+          <p className="text-sm text-slate-500 mt-2">対応形式: 画像 (JPG, PNG), PDF, CSV</p>
           <input
             ref={fileInputRef}
             type="file"

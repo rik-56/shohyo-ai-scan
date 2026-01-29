@@ -26,11 +26,23 @@ export const useHistory = () => {
     }
   }, []);
 
-  // Save history to localStorage
-  const persistHistory = useCallback((newHistory: HistoryBatch[]) => {
-    setHistory(newHistory);
-    localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(newHistory));
+  // Save history to localStorage with error handling
+  const persistHistory = useCallback((newHistory: HistoryBatch[]): boolean => {
+    try {
+      setHistory(newHistory);
+      localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(newHistory));
+      return true;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        console.error('LocalStorage quota exceeded:', error);
+        return false;
+      }
+      throw error;
+    }
   }, []);
+
+  // Save result type
+  type SaveResult = { batch: HistoryBatch; quotaExceeded: false } | { batch: null; quotaExceeded: true } | { batch: null; quotaExceeded: false };
 
   // Save a new batch to history
   const saveToHistory = useCallback((
@@ -39,8 +51,8 @@ export const useHistory = () => {
     name: string,
     previewUrl: string | null,
     fileType: 'image' | 'pdf' | 'csv'
-  ): HistoryBatch | null => {
-    if (transactions.length === 0 || !name.trim()) return null;
+  ): SaveResult => {
+    if (transactions.length === 0 || !name.trim()) return { batch: null, quotaExceeded: false };
 
     const newBatch: HistoryBatch = {
       id: `batch-${Date.now()}`,
@@ -55,9 +67,13 @@ export const useHistory = () => {
     };
 
     const newHistory = [newBatch, ...history];
-    persistHistory(newHistory);
+    const success = persistHistory(newHistory);
 
-    return newBatch;
+    if (!success) {
+      return { batch: null, quotaExceeded: true };
+    }
+
+    return { batch: newBatch, quotaExceeded: false };
   }, [history, persistHistory]);
 
   // Load a batch from history

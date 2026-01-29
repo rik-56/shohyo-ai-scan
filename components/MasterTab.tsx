@@ -95,11 +95,7 @@ export const MasterTab: React.FC<MasterTabProps> = ({
         // データを復元
         const data = importData.data;
 
-        // APIキー
-        if (data.geminiApiKey !== undefined) {
-          localStorage.setItem('kakeibo_ai_gemini_api_key', data.geminiApiKey);
-          onApiKeyChange(data.geminiApiKey);
-        }
+        // APIキーはセキュリティ上の理由からインポートしない（既に除外済み）
 
         // AIモデル
         if (data.geminiModel) {
@@ -171,7 +167,6 @@ export const MasterTab: React.FC<MasterTabProps> = ({
         <div className="space-y-4">
           <p className="text-sm text-slate-600">
             Google AI StudioでAPIキーを取得して設定すると、ファイルをアップロードするだけで自動解析できます。
-            手動モードでも「自動解析」オプションが利用可能になります。
           </p>
           <a
             href="https://aistudio.google.com/app/apikey"
@@ -217,9 +212,14 @@ export const MasterTab: React.FC<MasterTabProps> = ({
             </div>
           ) : (
             <div className="text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3">
-              APIキーが未設定です。手動モード（ChatGPT / Claude Web）のみ利用可能です。
+              APIキーが未設定です。上記リンクからAPIキーを取得して設定してください。
             </div>
           )}
+
+          <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
+            <strong>セキュリティに関する注意:</strong> APIキーはブラウザのLocalStorageに保存されます。
+            共有PCでは使用後に削除することをお勧めします。
+          </div>
         </div>
       </div>
 

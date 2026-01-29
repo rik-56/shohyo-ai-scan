@@ -3,6 +3,7 @@ import { Receipt, Settings, Lightbulb, Building2 } from 'lucide-react';
 import { ScannerTab } from './components/scanner/ScannerTab';
 import { MasterTab } from './components/MasterTab';
 import { CompanyMasterTab } from './components/CompanyMasterTab';
+import { OnboardingModal } from './components/OnboardingModal';
 import { AppTab, AccountMasterConfig, AccountMasterMap, AccountWithSubAccounts, LearningRulesMap } from './types';
 import { GeminiModelId } from './services/geminiService';
 import { DEFAULT_ACCOUNTS } from './constants';
@@ -14,6 +15,7 @@ const STORAGE_KEY_CUSTOM_TAX_CATEGORIES = 'kakeibo_ai_custom_tax_categories';
 const STORAGE_KEY_CLIENTS = 'kakeibo_ai_clients';
 const STORAGE_PREFIX_ACCOUNT_MASTER = 'kakeibo_ai_accounts_';
 const STORAGE_PREFIX_RULES = 'kakeibo_ai_rules_';
+const STORAGE_KEY_ONBOARDING_DONE = 'kakeibo_ai_onboarding_done';
 
 // 旧形式の型定義（マイグレーション用）
 type OldAccountMasterConfig = {
@@ -59,9 +61,16 @@ const App: React.FC = () => {
   const [clients, setClients] = useState<string[]>(['株式会社サンプル']);
   const [accountMasters, setAccountMasters] = useState<AccountMasterMap>({});
   const [allLearningRules, setAllLearningRules] = useState<Record<string, LearningRulesMap>>({});
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Load settings from localStorage on mount
   useEffect(() => {
+    // Check if onboarding has been completed
+    const onboardingDone = localStorage.getItem(STORAGE_KEY_ONBOARDING_DONE);
+    if (!onboardingDone) {
+      setShowOnboarding(true);
+    }
+
     const savedApiKey = localStorage.getItem(STORAGE_KEY_GEMINI_API_KEY);
     if (savedApiKey) {
       setGeminiApiKey(savedApiKey);
@@ -235,6 +244,12 @@ const App: React.FC = () => {
     localStorage.setItem(`${STORAGE_PREFIX_RULES}${clientName}`, JSON.stringify(rules));
   };
 
+  // Handler for onboarding close
+  const handleOnboardingClose = () => {
+    setShowOnboarding(false);
+    localStorage.setItem(STORAGE_KEY_ONBOARDING_DONE, 'true');
+  };
+
   return (
     <div className="min-h-screen bg-[#FAFAF9] flex flex-col text-slate-700">
       {/* Header */}
@@ -342,6 +357,8 @@ const App: React.FC = () => {
         </div>
       </main>
 
+      {/* Onboarding Modal */}
+      {showOnboarding && <OnboardingModal onClose={handleOnboardingClose} />}
     </div>
   );
 };

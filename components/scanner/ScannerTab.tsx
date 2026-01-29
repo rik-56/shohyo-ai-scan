@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Settings, Coins, Landmark, CreditCard, FileText, ChevronDown, BookmarkPlus, AlertCircle, HelpCircle } from 'lucide-react';
+import { Settings, Coins, Landmark, CreditCard, FileText, ChevronDown, ChevronRight, BookmarkPlus, AlertCircle, HelpCircle } from 'lucide-react';
 import { Transaction, HistoryBatch, AccountMasterMap, AccountMasterConfig, LearningRulesMap, PageTransactions, ScanResult } from '../../types';
 import { Toast, useToast } from '../Toast';
 import { analyzeWithGemini, analyzeMultiPagePdf, isPdfMultiPage, AnalysisError, GeminiModelId, MultiPageProgress } from '../../services/geminiService';
@@ -124,6 +124,9 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({
 
   // Mobile responsive state
   const [isMobile, setIsMobile] = useState(false);
+
+  // Settings accordion state
+  const [isSettingsExpanded, setIsSettingsExpanded] = useState(false);
 
   // Toast notification
   const { toasts, showToast, removeToast } = useToast();
@@ -646,7 +649,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({
   const handleSaveToHistory = () => {
     if (transactions.length === 0 || !tempSaveName.trim()) return;
 
-    saveToHistory(
+    const result = saveToHistory(
       transactions,
       selectedClient,
       tempSaveName.trim(),
@@ -656,7 +659,12 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({
 
     setIsSaveModalOpen(false);
     setTempSaveName('');
-    showToast('履歴を保存しました！', 'success');
+
+    if (result.quotaExceeded) {
+      showToast('ストレージ容量が不足しています。古い履歴を削除してから再度お試しください。', 'error');
+    } else if (result.batch) {
+      showToast('履歴を保存しました！', 'success');
+    }
   };
 
   // History handlers
@@ -675,6 +683,20 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({
     });
   };
 
+  // CSV Injection対策: 値をエスケープする関数
+  const escapeCsvValue = (value: string | number): string => {
+    if (typeof value === 'number') return String(value);
+    if (!value) return '';
+    const str = String(value);
+    // カンマ、改行、ダブルクォート、または式の先頭記号（=, +, -, @）を含む場合はエスケープ
+    if (str.match(/[",\n\r]/) || /^[=+\-@]/.test(str)) {
+      // 式の先頭記号がある場合は先頭にシングルクォートを追加してExcel式攻撃を防止
+      const escaped = /^[=+\-@]/.test(str) ? `'${str}` : str;
+      return `"${escaped.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
   // CSV download
   const downloadCSV = () => {
     const headers = ["取引日", "借方勘定科目", "借方補助科目", "借方金額", "貸方勘定科目", "貸方補助科目", "貸方金額", "摘要", "インボイス区分", "税区分"];
@@ -686,16 +708,16 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({
       const effectiveTaxCategory = t.taxCategory || '';
 
       return [
-        t.date,
-        isExpense ? effectiveKamoku : baseAccount,
-        isExpense ? effectiveSubKamoku : subAccount,
+        escapeCsvValue(t.date),
+        escapeCsvValue(isExpense ? effectiveKamoku : baseAccount),
+        escapeCsvValue(isExpense ? effectiveSubKamoku : subAccount),
         amount,
-        isExpense ? baseAccount : effectiveKamoku,
-        isExpense ? subAccount : effectiveSubKamoku,
+        escapeCsvValue(isExpense ? baseAccount : effectiveKamoku),
+        escapeCsvValue(isExpense ? subAccount : effectiveSubKamoku),
         amount,
-        `"${t.description.replace(/"/g, '""')}"`,
-        t.invoiceNumber || "",
-        effectiveTaxCategory
+        escapeCsvValue(t.description),
+        escapeCsvValue(t.invoiceNumber || ""),
+        escapeCsvValue(effectiveTaxCategory)
       ].join(",");
     });
 
@@ -726,13 +748,13 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({
       <div className="space-y-6">
         {/* Settings Section */}
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <h2 className="text-base font-semibold text-slate-700 mb-5 flex items-center gap-2">
+          <h2 className="text-base font-semibold text-slate-700 flex items-center gap-2">
             <Settings className="w-5 h-5 text-orange-600" />
             {selectedClient} の帳簿設定
             <HelpTip text="証憑の種類に応じて元帳を選択してください。選択した元帳が仕訳の貸方/借方に自動設定されます。" />
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Book Type Selection */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-600">元帳の種類</label>
@@ -828,14 +850,33 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({
             </div>
           </div>
 
-          {/* Pre-selection for Kamoku/SubKamoku */}
+          {/* Pre-selection for Kamoku/SubKamoku (Accordion) */}
           <div className="mt-6 pt-5 border-t border-slate-200">
-            <h3 className="text-sm font-medium text-slate-600 mb-3 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-orange-600" />
-              CSV出力時の勘定科目（事前選択）
-              <HelpTip text="全取引に同じ勘定科目を設定する場合に便利です。例：経費精算でほぼ全て旅費交通費の場合など。" />
-            </h3>
-            <p className="text-xs text-slate-500 mb-4">
+            <button
+              onClick={() => setIsSettingsExpanded(!isSettingsExpanded)}
+              className="w-full flex items-center justify-between text-left"
+            >
+              <h3 className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-orange-600" />
+                CSV出力時の勘定科目（事前選択）
+                <HelpTip text="全取引に同じ勘定科目を設定する場合に便利です。例：経費精算でほぼ全て旅費交通費の場合など。" />
+              </h3>
+              <div className="flex items-center gap-2">
+                {preSelectedKamoku && (
+                  <span className="text-xs text-orange-600">
+                    {preSelectedKamoku}{preSelectedSubKamoku ? ` / ${preSelectedSubKamoku}` : ''}
+                  </span>
+                )}
+                {isSettingsExpanded ? (
+                  <ChevronDown className="w-5 h-5 text-slate-400 transition-transform" />
+                ) : (
+                  <ChevronRight className="w-5 h-5 text-slate-400 transition-transform" />
+                )}
+              </div>
+            </button>
+            {isSettingsExpanded && (
+            <>
+            <p className="text-xs text-slate-500 mb-4 mt-3">
               ここで選択した科目が、CSV出力時にすべての取引に適用されます（空欄の場合は個別設定が使われます）
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -900,6 +941,8 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({
                 )}
               </div>
             </div>
+            </>
+            )}
           </div>
         </div>
 

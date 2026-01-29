@@ -410,7 +410,7 @@ export const analyzeWithGemini = async (
     }
   };
 
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
   try {
     console.log('[Gemini API] Sending request...');
@@ -420,7 +420,8 @@ export const analyzeWithGemini = async (
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
       },
       body: JSON.stringify(requestBody)
     });
