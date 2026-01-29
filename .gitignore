@@ -15,6 +15,9 @@ dist-ssr
 # Reference/test files
 参考/
 
+# Playwright MCP screenshots
+.playwright-mcp/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
