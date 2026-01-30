@@ -261,7 +261,7 @@ const App: React.FC = () => {
             </div>
             <div>
               <h1 className="text-lg font-semibold text-slate-800">仕訳アシスタント</h1>
-              <p className="text-xs text-slate-500">AI証憑解析・仕訳作成支援</p>
+              <p className="text-xs text-slate-500 hidden sm:block">AI証憑解析・仕訳作成支援</p>
             </div>
             <button
               onClick={() => window.open('/docs/使い方ガイド.html', '_blank')}
@@ -270,50 +270,50 @@ const App: React.FC = () => {
               title="使い方ガイド"
             >
               <Lightbulb className="w-4 h-4" />
-              <span className="text-xs font-medium hidden sm:inline">Tips</span>
+              <span className="text-xs font-medium">Tips</span>
             </button>
           </div>
 
           {/* Tab Navigation */}
-          <nav className="flex gap-1" role="tablist" aria-label="メイン機能">
+          <nav className="flex gap-0.5 sm:gap-1" role="tablist" aria-label="メイン機能">
             <button
               role="tab"
               aria-selected={activeTab === AppTab.SCANNER}
               onClick={() => setActiveTab(AppTab.SCANNER)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg font-medium text-sm transition-all ${
                 activeTab === AppTab.SCANNER
                   ? 'bg-orange-600 text-white'
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
               <Receipt className="w-4 h-4" />
-              <span className="hidden sm:inline">スキャン</span>
+              <span className="text-xs sm:text-sm">スキャン</span>
             </button>
             <button
               role="tab"
               aria-selected={activeTab === AppTab.COMPANY_MASTER}
               onClick={() => setActiveTab(AppTab.COMPANY_MASTER)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg font-medium text-sm transition-all ${
                 activeTab === AppTab.COMPANY_MASTER
                   ? 'bg-orange-600 text-white'
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
               <Building2 className="w-4 h-4" />
-              <span className="hidden sm:inline">会社別マスタ</span>
+              <span className="text-xs sm:text-sm"><span className="sm:hidden">会社</span><span className="hidden sm:inline">会社別マスタ</span></span>
             </button>
             <button
               role="tab"
               aria-selected={activeTab === AppTab.MASTER}
               onClick={() => setActiveTab(AppTab.MASTER)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg font-medium text-sm transition-all ${
                 activeTab === AppTab.MASTER
                   ? 'bg-orange-600 text-white'
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
               <Settings className="w-4 h-4" />
-              <span className="hidden sm:inline">設定</span>
+              <span className="text-xs sm:text-sm">設定</span>
             </button>
           </nav>
         </div>
