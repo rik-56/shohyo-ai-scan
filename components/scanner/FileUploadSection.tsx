@@ -131,7 +131,7 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
           <p className="font-semibold text-lg text-slate-700">
             {isDragOver ? 'ここにドロップ' : 'クリックまたはドラッグ&ドロップ'}
           </p>
-          <p className="text-sm text-slate-500 mt-2">対応形式: 画像 (JPG, PNG), PDF, CSV</p>
+          <p className="text-sm text-slate-600 mt-2">対応形式: 画像 (JPG, PNG), PDF, CSV</p>
           <input
             ref={fileInputRef}
             type="file"
@@ -147,7 +147,7 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
             <FileClock className="w-8 h-8 text-slate-400" />
             <div>
               <p className="font-medium text-slate-700">「{viewingHistoryName}」を表示中</p>
-              <p className="text-sm text-slate-500">修正して再度保存やCSV出力が可能です。</p>
+              <p className="text-sm text-slate-600">修正して再度保存やCSV出力が可能です。</p>
             </div>
           </div>
           <button
@@ -222,7 +222,7 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
                       AIおまかせモード
                       <HelpTip text="ONにするとAIが摘要から勘定科目を推測します。学習ルールがある場合はそちらが優先されます。" />
                     </span>
-                    <p className="text-xs text-slate-500">ONにするとAIが勘定科目を推測します</p>
+                    <p className="text-xs text-slate-600">ONにするとAIが勘定科目を推測します</p>
                   </div>
                 </label>
 
@@ -266,7 +266,7 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
                         ページ分割
                       </button>
                     </div>
-                    <p className="text-xs text-slate-500 mt-2">
+                    <p className="text-xs text-slate-600 mt-2">
                       {pdfProcessMode === 'single' && 'PDFを一括で解析（レート制限回避）'}
                       {pdfProcessMode === 'split' && 'ページごとに分割して解析（大容量PDF向け）'}
                     </p>
@@ -298,7 +298,7 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
             <Receipt className="w-12 h-12 text-orange-400" />
           </div>
           <h3 className="text-lg font-semibold text-slate-700 mb-2">取引データがありません</h3>
-          <p className="text-slate-500 mb-6">「AI自動解析」ボタンをクリックして証憑を解析してください。</p>
+          <p className="text-slate-600 mb-6">「AI自動解析」ボタンをクリックして証憑を解析してください。</p>
           <div className="text-sm text-slate-600 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-5 inline-block border border-orange-100">
             <p className="font-semibold mb-2 text-orange-700">対応フォーマット</p>
             <div className="flex flex-wrap justify-center gap-2">
@@ -333,7 +333,7 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
           {/* 複数ページ進捗表示 */}
           {multiPageProgress ? (
             <>
-              <p className="text-slate-500 mb-4">
+              <p className="text-slate-600 mb-4">
                 {multiPageProgress.message || `ページ ${multiPageProgress.currentPage} / ${multiPageProgress.totalPages}`}
               </p>
               <div className="max-w-xs mx-auto">
@@ -363,7 +363,7 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
             </>
           ) : (
             <>
-              <p className="text-slate-500 mb-4">証憑から取引情報を読み取っています</p>
+              <p className="text-slate-600 mb-4">証憑から取引情報を読み取っています</p>
               <div className="max-w-xs mx-auto">
                 <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                   <div className="h-full bg-gradient-to-r from-orange-400 to-amber-400 rounded-full animate-progress" />

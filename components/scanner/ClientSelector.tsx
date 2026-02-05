@@ -37,7 +37,7 @@ export const ClientSelector: React.FC<ClientSelectorProps> = ({
   if (isMobile) {
     return (
       <div className="pb-4">
-        <label className="text-xs font-medium text-slate-500 mb-2 block">クライアント選択</label>
+        <label className="text-xs font-medium text-slate-600 mb-2 block">クライアント選択</label>
         <div className="flex gap-2">
           <div className="relative flex-1">
             <select
@@ -68,7 +68,7 @@ export const ClientSelector: React.FC<ClientSelectorProps> = ({
               onChange={e => setNewClientName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAddClient()}
               placeholder="会社名を入力"
-              className="flex-1 text-sm outline-none bg-transparent"
+              className="flex-1 text-sm outline-none bg-transparent focus:ring-1 focus:ring-orange-500 rounded"
               aria-label="新しいクライアント名"
             />
             <button
@@ -135,7 +135,7 @@ export const ClientSelector: React.FC<ClientSelectorProps> = ({
             onChange={e => setNewClientName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleAddClient()}
             placeholder="会社名"
-            className="text-sm outline-none w-32 bg-transparent"
+            className="text-sm outline-none w-32 bg-transparent focus:ring-1 focus:ring-orange-500 rounded"
             aria-label="新しいクライアント名"
           />
           <button

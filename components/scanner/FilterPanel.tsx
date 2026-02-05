@@ -69,31 +69,31 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {/* Date From */}
             <div className="space-y-1">
-              <label className="text-xs text-slate-500 font-medium">取引日（開始）</label>
+              <label className="text-xs text-slate-600 font-medium">取引日（開始）</label>
               <input
                 type="date"
                 value={filters.dateFrom}
                 onChange={e => onFilterChange('dateFrom', e.target.value)}
-                className="w-full px-2 py-1.5 rounded border border-slate-300 text-sm outline-none focus:border-orange-500"
+                className="w-full px-2 py-1.5 rounded border border-slate-300 text-sm outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               />
             </div>
             {/* Date To */}
             <div className="space-y-1">
-              <label className="text-xs text-slate-500 font-medium">取引日（終了）</label>
+              <label className="text-xs text-slate-600 font-medium">取引日（終了）</label>
               <input
                 type="date"
                 value={filters.dateTo}
                 onChange={e => onFilterChange('dateTo', e.target.value)}
-                className="w-full px-2 py-1.5 rounded border border-slate-300 text-sm outline-none focus:border-orange-500"
+                className="w-full px-2 py-1.5 rounded border border-slate-300 text-sm outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               />
             </div>
             {/* Kamoku */}
             <div className="space-y-1">
-              <label className="text-xs text-slate-500 font-medium">相手勘定科目</label>
+              <label className="text-xs text-slate-600 font-medium">相手勘定科目</label>
               <select
                 value={filters.kamoku}
                 onChange={e => onFilterChange('kamoku', e.target.value)}
-                className="w-full px-2 py-1.5 rounded border border-slate-300 text-sm outline-none focus:border-orange-500"
+                className="w-full px-2 py-1.5 rounded border border-slate-300 text-sm outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               >
                 <option value="">すべて</option>
                 {filterOptions.kamoku.map(k => (
@@ -103,11 +103,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             </div>
             {/* SubKamoku */}
             <div className="space-y-1">
-              <label className="text-xs text-slate-500 font-medium">補助科目</label>
+              <label className="text-xs text-slate-600 font-medium">補助科目</label>
               <select
                 value={filters.subKamoku}
                 onChange={e => onFilterChange('subKamoku', e.target.value)}
-                className="w-full px-2 py-1.5 rounded border border-slate-300 text-sm outline-none focus:border-orange-500"
+                className="w-full px-2 py-1.5 rounded border border-slate-300 text-sm outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               >
                 <option value="">すべて</option>
                 {filterOptions.subKamoku.map(s => (
@@ -117,11 +117,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             </div>
             {/* Invoice */}
             <div className="space-y-1">
-              <label className="text-xs text-slate-500 font-medium">インボイス</label>
+              <label className="text-xs text-slate-600 font-medium">インボイス</label>
               <select
                 value={filters.invoiceNumber}
                 onChange={e => onFilterChange('invoiceNumber', e.target.value)}
-                className="w-full px-2 py-1.5 rounded border border-slate-300 text-sm outline-none focus:border-orange-500"
+                className="w-full px-2 py-1.5 rounded border border-slate-300 text-sm outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               >
                 <option value="">すべて</option>
                 <option value="適格">適格</option>
@@ -130,11 +130,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             </div>
             {/* Tax Category */}
             <div className="space-y-1">
-              <label className="text-xs text-slate-500 font-medium">税区分</label>
+              <label className="text-xs text-slate-600 font-medium">税区分</label>
               <select
                 value={filters.taxCategory}
                 onChange={e => onFilterChange('taxCategory', e.target.value)}
-                className="w-full px-2 py-1.5 rounded border border-slate-300 text-sm outline-none focus:border-orange-500"
+                className="w-full px-2 py-1.5 rounded border border-slate-300 text-sm outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               >
                 <option value="">すべて</option>
                 {filterOptions.taxCategory.map(tc => (
@@ -147,14 +147,14 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
           {/* Filter count and clear */}
           <div className="flex justify-between items-center">
             {hasActiveFilters && (
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-slate-600">
                 {totalCount}件中 <span className="font-semibold text-orange-600">{filteredCount}件</span> を表示中
               </span>
             )}
             {hasActiveFilters && (
               <button
                 onClick={onClearAllFilters}
-                className="text-xs text-slate-500 hover:text-orange-600 flex items-center gap-1"
+                className="text-xs text-slate-600 hover:text-orange-600 flex items-center gap-1"
               >
                 <X className="w-3 h-3" />
                 フィルターをクリア

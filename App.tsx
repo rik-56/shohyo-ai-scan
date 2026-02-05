@@ -9,6 +9,7 @@ import { GeminiModelId } from './services/geminiService';
 import { DEFAULT_ACCOUNTS } from './constants';
 
 // Storage keys for centralized settings
+// APIキーはセキュリティ向上のためsessionStorageを使用（タブを閉じると消去）
 const STORAGE_KEY_GEMINI_API_KEY = 'kakeibo_ai_gemini_api_key';
 const STORAGE_KEY_GEMINI_MODEL = 'kakeibo_ai_gemini_model';
 const STORAGE_KEY_CUSTOM_TAX_CATEGORIES = 'kakeibo_ai_custom_tax_categories';
@@ -71,7 +72,8 @@ const App: React.FC = () => {
       setShowOnboarding(true);
     }
 
-    const savedApiKey = localStorage.getItem(STORAGE_KEY_GEMINI_API_KEY);
+    // APIキーはsessionStorageから読み込み（セキュリティ向上）
+    const savedApiKey = sessionStorage.getItem(STORAGE_KEY_GEMINI_API_KEY);
     if (savedApiKey) {
       setGeminiApiKey(savedApiKey);
     }
@@ -181,12 +183,13 @@ const App: React.FC = () => {
   }, []);
 
   // Handler for API key changes
+  // APIキーはセキュリティ向上のためsessionStorageに保存（タブを閉じると消去）
   const handleApiKeyChange = (key: string) => {
     setGeminiApiKey(key);
     if (key) {
-      localStorage.setItem(STORAGE_KEY_GEMINI_API_KEY, key);
+      sessionStorage.setItem(STORAGE_KEY_GEMINI_API_KEY, key);
     } else {
-      localStorage.removeItem(STORAGE_KEY_GEMINI_API_KEY);
+      sessionStorage.removeItem(STORAGE_KEY_GEMINI_API_KEY);
     }
   };
 
@@ -261,7 +264,7 @@ const App: React.FC = () => {
             </div>
             <div>
               <h1 className="text-lg font-semibold text-slate-800">仕訳アシスタント</h1>
-              <p className="text-xs text-slate-500 hidden sm:block">AI証憑解析・仕訳作成支援</p>
+              <p className="text-xs text-slate-600 hidden sm:block">AI証憑解析・仕訳作成支援</p>
             </div>
             <button
               onClick={() => window.open('/docs/使い方ガイド.html', '_blank')}

@@ -56,7 +56,7 @@ export const BatchEditPanel: React.FC<BatchEditPanelProps> = ({
         </div>
         <button
           onClick={onCancel}
-          className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1"
+          className="text-xs text-slate-600 hover:text-slate-700 flex items-center gap-1"
         >
           <X className="w-3 h-3" />
           キャンセル
@@ -70,7 +70,7 @@ export const BatchEditPanel: React.FC<BatchEditPanelProps> = ({
           <select
             value={batchKamoku}
             onChange={e => setBatchKamoku(e.target.value)}
-            className="w-full px-2 py-2 rounded-lg border border-slate-300 text-sm outline-none focus:border-orange-500 bg-white"
+            className="w-full px-2 py-2 rounded-lg border border-slate-300 text-sm outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 bg-white"
           >
             <option value="">変更なし</option>
             {availableKamokuList.map(k => (
@@ -84,7 +84,7 @@ export const BatchEditPanel: React.FC<BatchEditPanelProps> = ({
           <select
             value={batchSubKamoku}
             onChange={e => setBatchSubKamoku(e.target.value)}
-            className="w-full px-2 py-2 rounded-lg border border-slate-300 text-sm outline-none focus:border-orange-500 bg-white"
+            className="w-full px-2 py-2 rounded-lg border border-slate-300 text-sm outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 bg-white"
           >
             <option value="">変更なし</option>
             {batchKamoku && getSubAccountsForKamoku(batchKamoku).map(s => (
@@ -98,7 +98,7 @@ export const BatchEditPanel: React.FC<BatchEditPanelProps> = ({
           <select
             value={batchTaxCategory}
             onChange={e => setBatchTaxCategory(e.target.value)}
-            className="w-full px-2 py-2 rounded-lg border border-slate-300 text-sm outline-none focus:border-orange-500 bg-white"
+            className="w-full px-2 py-2 rounded-lg border border-slate-300 text-sm outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 bg-white"
           >
             <option value="">変更なし</option>
             {allTaxCategories.map(tc => (
@@ -112,7 +112,7 @@ export const BatchEditPanel: React.FC<BatchEditPanelProps> = ({
           <select
             value={batchInvoice}
             onChange={e => setBatchInvoice(e.target.value)}
-            className="w-full px-2 py-2 rounded-lg border border-slate-300 text-sm outline-none focus:border-orange-500 bg-white"
+            className="w-full px-2 py-2 rounded-lg border border-slate-300 text-sm outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 bg-white"
           >
             <option value="">変更なし</option>
             <option value="適格">適格</option>

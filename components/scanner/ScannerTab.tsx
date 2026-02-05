@@ -687,12 +687,19 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({
   const escapeCsvValue = (value: string | number): string => {
     if (typeof value === 'number') return String(value);
     if (!value) return '';
-    const str = String(value);
-    // カンマ、改行、ダブルクォート、または式の先頭記号（=, +, -, @）を含む場合はエスケープ
-    if (str.match(/[",\n\r]/) || /^[=+\-@]/.test(str)) {
-      // 式の先頭記号がある場合は先頭にシングルクォートを追加してExcel式攻撃を防止
-      const escaped = /^[=+\-@]/.test(str) ? `'${str}` : str;
-      return `"${escaped.replace(/"/g, '""')}"`;
+    let str = String(value);
+
+    // 危険な先頭文字（=, +, -, @, タブ, CR）をスペースで無害化
+    if (/^[=+\-@\t\r]/.test(str)) {
+      str = ' ' + str;
+    }
+
+    // タブ、改行、および制御文字（0x00-0x1F）を削除
+    str = str.replace(/[\t\x00-\x1F]/g, '');
+
+    // カンマ、改行、ダブルクォート、または元の値と異なる場合はクォートで囲む
+    if (str.match(/[",\n\r]/) || str !== String(value)) {
+      return `"${str.replace(/"/g, '""')}"`;
     }
     return str;
   };
@@ -841,7 +848,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                 />
               )}
-              <div className="text-xs text-slate-500">
+              <div className="text-xs text-slate-600">
                 現在の元帳科目: <span className="font-medium text-slate-700">{baseAccount}</span>
                 {availableLedgerSubAccounts.length === 0 && (
                   <span className="ml-2 text-orange-600">（設定タブで補助科目を登録できます）</span>
@@ -876,12 +883,12 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({
             </button>
             {isSettingsExpanded && (
             <>
-            <p className="text-xs text-slate-500 mb-4 mt-3">
+            <p className="text-xs text-slate-600 mb-4 mt-3">
               ここで選択した科目が、CSV出力時にすべての取引に適用されます（空欄の場合は個別設定が使われます）
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-500">相手勘定科目</label>
+                <label className="text-xs font-medium text-slate-600">相手勘定科目</label>
                 <div className="flex items-center gap-2">
                   <Combobox
                     value={preSelectedKamoku}
@@ -910,7 +917,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-500">相手補助科目</label>
+                <label className="text-xs font-medium text-slate-600">相手補助科目</label>
                 <div className="flex items-center gap-2">
                   <Combobox
                     value={preSelectedSubKamoku}
@@ -972,7 +979,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({
             <div className="flex items-center gap-2 mb-3">
               <FileText className="w-4 h-4 text-orange-600" />
               <span className="text-sm font-medium text-slate-700">ページ別表示</span>
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-slate-600">
                 （{scanResult.pages.length}ページ、計{transactions.length}件）
               </span>
             </div>
@@ -1092,7 +1099,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({
             <h3 className="text-lg font-semibold text-slate-700 mb-2 flex items-center gap-2">
               <BookmarkPlus className="text-orange-600" />証憑保存
             </h3>
-            <p className="text-sm text-slate-500 mb-5">後から確認しやすい名前を付けてください。</p>
+            <p className="text-sm text-slate-600 mb-5">後から確認しやすい名前を付けてください。</p>
             <input
               autoFocus
               value={tempSaveName}
@@ -1104,7 +1111,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({
             <div className="flex gap-3">
               <button
                 onClick={() => setIsSaveModalOpen(false)}
-                className="flex-1 py-2.5 text-slate-500 font-medium hover:bg-slate-50 rounded-lg transition-all"
+                className="flex-1 py-2.5 text-slate-600 font-medium hover:bg-slate-50 rounded-lg transition-all"
               >
                 キャンセル
               </button>
@@ -1131,7 +1138,7 @@ export const ScannerTab: React.FC<ScannerTabProps> = ({
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmDialog(null)}
-                className="flex-1 py-2.5 text-slate-500 font-medium hover:bg-slate-50 rounded-lg transition-all"
+                className="flex-1 py-2.5 text-slate-600 font-medium hover:bg-slate-50 rounded-lg transition-all"
               >
                 キャンセル
               </button>

@@ -67,7 +67,7 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
               </button>
               <button
                 onClick={onCancelSelection}
-                className="text-sm font-medium text-slate-500 hover:text-slate-700 px-4 py-2"
+                className="text-sm font-medium text-slate-600 hover:text-slate-700 px-4 py-2"
               >
                 キャンセル
               </button>
@@ -115,13 +115,13 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
               </div>
               <div className="overflow-hidden">
                 <h4 className="font-medium text-slate-700 truncate">{batch.name}</h4>
-                <div className="text-[10px] text-slate-500 font-mono">
+                <div className="text-[10px] text-slate-600 font-mono">
                   {new Date(batch.timestamp).toLocaleString()}
                 </div>
               </div>
             </div>
             <div className="flex justify-between items-center mt-auto pt-2 border-t border-slate-200">
-              <div className="text-xs text-slate-500">
+              <div className="text-xs text-slate-600">
                 <span className="font-medium text-slate-700">{batch.count}</span> 件
               </div>
               {!isSelectionMode && (

@@ -181,7 +181,7 @@ export const CompanyMasterTab: React.FC<CompanyMasterTabProps> = ({
                   <Settings className="w-4 h-4 text-orange-600" />
                   元帳補助科目（会社別）
                 </h3>
-                <p className="text-xs text-slate-500 mb-4">
+                <p className="text-xs text-slate-600 mb-4">
                   元帳種別ごとの補助科目を設定します。複数登録でき、スキャン時に選択できます。
                 </p>
                 <div className="space-y-4">
@@ -461,7 +461,7 @@ export const CompanyMasterTab: React.FC<CompanyMasterTabProps> = ({
                         {/* Sub-Accounts (Expanded) */}
                         {expandedAccountIndex === index && (
                           <div className="p-3 bg-white border-t border-slate-200">
-                            <div className="text-xs text-slate-500 mb-2">補助科目リスト</div>
+                            <div className="text-xs text-slate-600 mb-2">補助科目リスト</div>
                             {account.subAccounts.length > 0 ? (
                               <div className="flex flex-wrap gap-2 mb-3">
                                 {account.subAccounts.map(sub => (
@@ -524,7 +524,7 @@ export const CompanyMasterTab: React.FC<CompanyMasterTabProps> = ({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-500 mb-4">
+                  <p className="text-sm text-slate-600 mb-4">
                     勘定科目がありません。
                   </p>
                 )}
@@ -644,7 +644,7 @@ export const CompanyMasterTab: React.FC<CompanyMasterTabProps> = ({
                           <td className="px-4 py-2.5 text-slate-700">
                             {rule.kamoku || '-'}
                           </td>
-                          <td className="px-4 py-2.5 text-slate-500">
+                          <td className="px-4 py-2.5 text-slate-600">
                             {rule.subKamoku || '-'}
                           </td>
                           <td className="px-4 py-2.5 text-center">
@@ -666,7 +666,7 @@ export const CompanyMasterTab: React.FC<CompanyMasterTabProps> = ({
                   </table>
                 </div>
               ) : (
-                <div className="text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
+                <div className="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
                   学習ルールはまだありません。スキャン画面で勘定科目を設定すると自動で保存されます。
                 </div>
               )}

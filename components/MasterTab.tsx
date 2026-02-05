@@ -211,14 +211,14 @@ export const MasterTab: React.FC<MasterTabProps> = ({
               APIキーが設定されています。AI自動解析が利用可能です。
             </div>
           ) : (
-            <div className="text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3">
+            <div className="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3">
               APIキーが未設定です。上記リンクからAPIキーを取得して設定してください。
             </div>
           )}
 
           <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
-            <strong>セキュリティに関する注意:</strong> APIキーはブラウザのLocalStorageに保存されます。
-            共有PCでは使用後に削除することをお勧めします。
+            <strong>セキュリティに関する注意:</strong> APIキーはブラウザのセッションストレージに保存され、タブを閉じると自動的に消去されます。
+            毎回のセッション開始時にAPIキーの再入力が必要です。
           </div>
         </div>
       </div>
@@ -262,7 +262,7 @@ export const MasterTab: React.FC<MasterTabProps> = ({
                 </div>
                 <div className="flex-1">
                   <div className="font-medium text-slate-700">{model.name}</div>
-                  <div className="text-sm text-slate-500">{model.description}</div>
+                  <div className="text-sm text-slate-600">{model.description}</div>
                 </div>
               </label>
             ))}
@@ -315,7 +315,7 @@ export const MasterTab: React.FC<MasterTabProps> = ({
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-slate-500 mb-4">カスタム税区分はまだ追加されていません。</p>
+              <p className="text-sm text-slate-600 mb-4">カスタム税区分はまだ追加されていません。</p>
             )}
 
             {/* Add Custom Category */}
@@ -394,7 +394,7 @@ export const MasterTab: React.FC<MasterTabProps> = ({
             />
           </div>
 
-          <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3">
+          <div className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3">
             <p className="font-medium mb-1">エクスポートされるデータ:</p>
             <ul className="list-disc list-inside space-y-0.5">
               <li>AIモデル設定</li>

@@ -74,7 +74,7 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
         <input
           value={t.date}
           onChange={e => onUpdate('date', e.target.value)}
-          className="w-full bg-transparent px-2 py-1 outline-none focus:bg-white rounded border border-transparent focus:border-orange-500"
+          className="w-full bg-transparent px-2 py-1 outline-none focus:bg-white rounded border border-transparent focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
           aria-label="取引日"
         />
       </td>
@@ -133,7 +133,7 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
           value={t.subKamoku || ''}
           placeholder="-"
           onChange={e => onUpdate('subKamoku', e.target.value)}
-          className="w-full bg-transparent px-2 py-1 outline-none focus:bg-white rounded border border-transparent focus:border-orange-500"
+          className="w-full bg-transparent px-2 py-1 outline-none focus:bg-white rounded border border-transparent focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
           aria-label="相手補助科目"
         />
         <datalist id={`subkamoku-list-${t.id}`}>

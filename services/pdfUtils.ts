@@ -30,18 +30,53 @@ const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
 };
 
 /**
+ * Canvasのメモリを明示的に解放する
+ * ブラウザによってはCanvasのメモリが自動解放されないため、明示的にクリーンアップする
+ */
+const cleanupCanvas = (canvas: HTMLCanvasElement, context: CanvasRenderingContext2D | null): void => {
+  try {
+    // Canvasのサイズを0にしてメモリを解放
+    canvas.width = 0;
+    canvas.height = 0;
+
+    // コンテキストをクリア
+    if (context) {
+      context.clearRect(0, 0, 0, 0);
+    }
+
+    // DOMから削除（念のため）
+    if (canvas.parentNode) {
+      canvas.parentNode.removeChild(canvas);
+    }
+  } catch (e) {
+    console.warn('[PDF Utils] Canvas cleanup warning:', e);
+  }
+};
+
+/**
  * PDFのページ数を取得
  * @param pdfData - Base64エンコードされたPDFデータ（data URL形式可）
  * @returns ページ数
  */
 export const getPdfPageCount = async (pdfData: string): Promise<number> => {
+  let pdf: pdfjsLib.PDFDocumentProxy | null = null;
   try {
     const arrayBuffer = base64ToArrayBuffer(pdfData);
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    return pdf.numPages;
+    pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const numPages = pdf.numPages;
+    return numPages;
   } catch (error) {
     console.error('[PDF Utils] Failed to get page count:', error);
     throw new Error('PDFのページ数取得に失敗しました');
+  } finally {
+    // PDFドキュメントを明示的に破棄
+    if (pdf) {
+      try {
+        pdf.destroy();
+      } catch (e) {
+        console.warn('[PDF Utils] PDF cleanup warning:', e);
+      }
+    }
   }
 };
 
@@ -55,22 +90,29 @@ export const extractPdfPages = async (
   pdfData: string,
   scale: number = 2.0
 ): Promise<PageImage[]> => {
+  let pdf: pdfjsLib.PDFDocumentProxy | null = null;
+  const canvasesToCleanup: { canvas: HTMLCanvasElement; context: CanvasRenderingContext2D | null }[] = [];
+
   try {
     const arrayBuffer = base64ToArrayBuffer(pdfData);
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     const numPages = pdf.numPages;
     const pages: PageImage[] = [];
 
     console.log(`[PDF Utils] Extracting ${numPages} pages...`);
 
     for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+      let page: pdfjsLib.PDFPageProxy | null = null;
+      let canvas: HTMLCanvasElement | null = null;
+      let context: CanvasRenderingContext2D | null = null;
+
       try {
-        const page = await pdf.getPage(pageNum);
+        page = await pdf.getPage(pageNum);
         const viewport = page.getViewport({ scale });
 
         // Canvasを作成
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
+        canvas = document.createElement('canvas');
+        context = canvas.getContext('2d');
 
         if (!context) {
           throw new Error('Canvas context is not available');
@@ -96,9 +138,6 @@ export const extractPdfPages = async (
         });
 
         console.log(`[PDF Utils] Page ${pageNum}/${numPages} extracted`);
-
-        // メモリ解放
-        page.cleanup();
       } catch (pageError) {
         console.error(`[PDF Utils] Failed to extract page ${pageNum}:`, pageError);
         // 個別ページのエラーは記録するが、処理を続行
@@ -107,6 +146,18 @@ export const extractPdfPages = async (
           dataUrl: '',
           mimeType: 'image/png'
         });
+      } finally {
+        // ページごとにリソースをクリーンアップ
+        if (page) {
+          try {
+            page.cleanup();
+          } catch (e) {
+            console.warn('[PDF Utils] Page cleanup warning:', e);
+          }
+        }
+        if (canvas && context) {
+          cleanupCanvas(canvas, context);
+        }
       }
     }
 
@@ -114,6 +165,15 @@ export const extractPdfPages = async (
   } catch (error) {
     console.error('[PDF Utils] Failed to extract pages:', error);
     throw new Error('PDFのページ抽出に失敗しました');
+  } finally {
+    // PDFドキュメントを明示的に破棄
+    if (pdf) {
+      try {
+        pdf.destroy();
+      } catch (e) {
+        console.warn('[PDF Utils] PDF cleanup warning:', e);
+      }
+    }
   }
 };
 
@@ -129,19 +189,24 @@ export const extractSinglePage = async (
   pageNumber: number,
   scale: number = 2.0
 ): Promise<PageImage> => {
+  let pdf: pdfjsLib.PDFDocumentProxy | null = null;
+  let page: pdfjsLib.PDFPageProxy | null = null;
+  let canvas: HTMLCanvasElement | null = null;
+  let context: CanvasRenderingContext2D | null = null;
+
   try {
     const arrayBuffer = base64ToArrayBuffer(pdfData);
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
     if (pageNumber < 1 || pageNumber > pdf.numPages) {
       throw new Error(`Invalid page number: ${pageNumber}. PDF has ${pdf.numPages} pages.`);
     }
 
-    const page = await pdf.getPage(pageNumber);
+    page = await pdf.getPage(pageNumber);
     const viewport = page.getViewport({ scale });
 
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
+    canvas = document.createElement('canvas');
+    context = canvas.getContext('2d');
 
     if (!context) {
       throw new Error('Canvas context is not available');
@@ -158,8 +223,6 @@ export const extractSinglePage = async (
 
     const dataUrl = canvas.toDataURL('image/png');
 
-    page.cleanup();
-
     return {
       pageNumber,
       dataUrl,
@@ -168,5 +231,24 @@ export const extractSinglePage = async (
   } catch (error) {
     console.error(`[PDF Utils] Failed to extract page ${pageNumber}:`, error);
     throw new Error(`ページ ${pageNumber} の抽出に失敗しました`);
+  } finally {
+    // リソースをクリーンアップ
+    if (page) {
+      try {
+        page.cleanup();
+      } catch (e) {
+        console.warn('[PDF Utils] Page cleanup warning:', e);
+      }
+    }
+    if (canvas && context) {
+      cleanupCanvas(canvas, context);
+    }
+    if (pdf) {
+      try {
+        pdf.destroy();
+      } catch (e) {
+        console.warn('[PDF Utils] PDF cleanup warning:', e);
+      }
+    }
   }
 };
